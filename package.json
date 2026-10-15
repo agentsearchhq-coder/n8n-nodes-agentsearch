@@ -1,0 +1,23 @@
+{
+  "name": "n8n-nodes-agentsearch",
+  "version": "0.1.0",
+  "description": "n8n community node for AgentSearch: free live web search for AI agents and workflows (no credentials)",
+  "keywords": ["n8n-community-node-package", "n8n", "agentsearch", "web-search", "search", "ai-agent"],
+  "license": "MIT",
+  "homepage": "https://agentsearchhq.com/?utm_source=n8n-nodes-agentsearch&utm_medium=package",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && cp nodes/AgentSearch/*.svg dist/nodes/AgentSearch/",
+    "prepublishOnly": "npm run build",
+    "test": "npm run build && node --test test/*.test.mjs"
+  },
+  "files": ["dist", "templates", "README.md", "LICENSE"],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [],
+    "nodes": ["dist/nodes/AgentSearch/AgentSearch.node.js"]
+  },
+  "engines": { "node": ">=20" },
+  "peerDependencies": { "n8n-workflow": "*" },
+  "devDependencies": { "n8n-workflow": "^1.82.0", "typescript": "^5.7.0", "@types/node": "^22.10.0" }
+}

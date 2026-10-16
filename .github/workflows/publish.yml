@@ -15,7 +15,7 @@ jobs:
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org
-      - run: npm ci
+      - run: npm ci --ignore-scripts  # n8n-workflow pulls isolated-vm (native); only its types are needed
       - run: npm run build
       - run: npm test
       - name: Check tag matches package version

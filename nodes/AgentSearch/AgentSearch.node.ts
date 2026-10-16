@@ -2,9 +2,10 @@ import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescrip
 import { NodeOperationError } from 'n8n-workflow';
 
 export const FREE_RELAY_URL = 'https://relay.agentsearchhq.com/v1/search';
+export const CLIENT_TAG = 'n8n-nodes-agentsearch/0.2.1';
 const DOCS = 'https://agentsearchhq.com/?utm_source=n8n-nodes-agentsearch&utm_medium=package';
 export const LIMIT_MESSAGE =
-	`Free AgentSearch limit reached (25 searches per day per user; resets daily). For unlimited search plus extract/render, use the paid API ($0.005 per call in USDC on Base via x402). Docs: ${DOCS}`;
+	`Free AgentSearch limit reached (25 searches per day per user; resets daily). For unlimited search plus extract (static pages) and render (JavaScript-heavy pages, or when extract returns thin content), use the paid API ($0.005 per call in USDC on Base via x402). Docs: ${DOCS}`;
 
 export class AgentSearch implements INodeType {
 	description: INodeTypeDescription = {
@@ -56,6 +57,7 @@ export class AgentSearch implements INodeType {
 						method: 'POST',
 						url: FREE_RELAY_URL,
 						body: { query, max_results: maxResults },
+						headers: { 'X-Agent-Client': CLIENT_TAG },
 						json: true,
 						timeout: 30000,
 					});

@@ -2,7 +2,7 @@
 
 n8n community node for [AgentSearch](https://agentsearchhq.com/?utm_source=n8n-nodes-agentsearch&utm_medium=package): live web search for workflows and AI agents.
 
-- **Free Search** operation: up to 5 results per call, 25 searches per day per user, **no credentials**.
+- **Free Search** operation: up to 5 results per call, 25 searches per day per IP, **no credentials**.
 - `usableAsTool`: works as a tool for the n8n AI Agent node.
 
 ## Install
@@ -33,7 +33,7 @@ If the daily free limit is reached (HTTP 429) the node fails with an explanation
 
 ## Paid API
 
-Unlimited search plus page extract and JS render are $0.005 per call in USDC on Base via x402. See https://agentsearchhq.com/agents.md?utm_source=n8n-nodes-agentsearch&utm_medium=package
+Unlimited search plus page extract and JS render are $0.005 per call via the Pocket Agentic Portal (x402, USDC on Base). See https://agentsearchhq.com/agents.md?utm_source=n8n-nodes-agentsearch&utm_medium=package
 
 ## Development
 

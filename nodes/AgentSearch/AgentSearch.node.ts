@@ -2,7 +2,7 @@ import type { IExecuteFunctions, INodeExecutionData, INodeType, INodeTypeDescrip
 import { NodeOperationError } from 'n8n-workflow';
 
 export const FREE_RELAY_URL = 'https://relay.agentsearchhq.com/v1/search';
-export const CLIENT_TAG = 'n8n-nodes-agentsearch/0.2.2';
+export const CLIENT_TAG = 'n8n-nodes-agentsearch/0.2.3';
 const DOCS = 'https://agentsearchhq.com/?utm_source=n8n-nodes-agentsearch&utm_medium=package';
 export const LIMIT_MESSAGE =
 	`Free AgentSearch limit reached (25 searches per day per IP; resets daily). For unlimited search plus extract (static pages) and render (JavaScript-heavy pages, or when extract returns thin content), use the paid API ($0.005 per call via the Pocket Agentic Portal, x402 USDC on Base). Docs: ${DOCS}`;

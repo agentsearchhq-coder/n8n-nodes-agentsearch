@@ -1,6 +1,7 @@
 {
   "name": "n8n-nodes-agentsearch",
-  "version": "0.2.2",
+    "version": "0.2.3",
+  "author": { "name": "AgentSearch", "email": "AgentSearchhq@gmail.com", "url": "https://agentsearchhq.com" },
   "description": "n8n community node for AgentSearch: free live web search for AI agents and workflows (no credentials)",
   "keywords": [
     "n8n-community-node-package",

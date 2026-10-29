@@ -27,6 +27,8 @@ Output (default):
 
 If the daily free limit is reached (HTTP 429) the node fails with an explanation; enable *Continue On Fail* to keep the workflow running.
 
+**Hit the 429?** Paid Extract (full page text) and Render (JS pages) are $0.005 per call via the Pocket Agentic Portal: https://agentsearchhq.com/agents.md?utm_source=n8n-nodes-agentsearch&utm_medium=package-429
+
 ## Workflow template (no install needed)
 
 `templates/agentsearch-free-search.workflow.json` does the same with the built-in **HTTP Request** node. Import it via **Workflows → Import from File** (or paste the JSON onto the canvas).

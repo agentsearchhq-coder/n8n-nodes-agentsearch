@@ -29,6 +29,10 @@ If the daily free limit is reached (HTTP 429) the node fails with an explanation
 
 **Hit the 429?** Paid Extract (full page text) and Render (JS pages) are $0.005 per call via the Pocket Agentic Portal: https://agentsearchhq.com/agents.md?utm_source=n8n-nodes-agentsearch&utm_medium=package-429
 
+## Read full pages (search, then extract)
+
+Search results are snippets. To have an n8n AI Agent read the best one or two pages as clean markdown, add n8n's built-in **MCP Client Tool** pointed at the AgentSearch MCP server (`npx -y @agentsearchhq/agentsearch-mcp`) and allow only `agentsearch_extract` (plus `agentsearch_render` for JavaScript pages). Extract and Render are $0.005 per call in USDC on Base via x402 ($1 covers 200 calls); search stays free on this node. Step-by-step with importable JSON: https://agentsearchhq.com/blog/n8n-ai-agent-read-web-pages?utm_source=n8n-nodes-agentsearch&utm_medium=package
+
 ## Workflow template (no install needed)
 
 `templates/agentsearch-free-search.workflow.json` does the same with the built-in **HTTP Request** node. Import it via **Workflows → Import from File** (or paste the JSON onto the canvas).

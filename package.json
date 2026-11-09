@@ -1,21 +1,28 @@
 {
   "name": "n8n-nodes-agentsearch",
-  "version": "0.2.4",
-  "author": { "name": "AgentSearch", "email": "AgentSearchhq@gmail.com", "url": "https://agentsearchhq.com" },
-  "description": "n8n community node for AgentSearch: free live web search for AI agents and workflows (no credentials)",
+  "version": "0.3.0",
+  "author": {
+    "name": "AgentSearch",
+    "email": "AgentSearchhq@gmail.com",
+    "url": "https://agentsearchhq.com"
+  },
+  "description": "n8n community node for AgentSearch: free live web search for AI agents (no credentials), plus page Extract and JavaScript Render at $0.005 per call (USDC on Base via x402)",
   "keywords": [
     "n8n-community-node-package",
     "n8n",
     "agentsearch",
     "web-search",
     "search",
-    "ai-agent"
+    "ai-agent",
+    "extract",
+    "web-scraping",
+    "x402"
   ],
   "license": "MIT",
   "homepage": "https://agentsearchhq.com/?utm_source=n8n-nodes-agentsearch&utm_medium=package",
   "main": "index.js",
   "scripts": {
-    "build": "tsc && cp nodes/AgentSearch/*.svg dist/nodes/AgentSearch/",
+    "build": "tsc && cp nodes/AgentSearch/*.svg dist/nodes/AgentSearch/ && cp credentials/*.svg dist/credentials/",
     "prepublishOnly": "npm run build",
     "test": "npm run build && node --test test/*.test.mjs"
   },
@@ -27,7 +34,9 @@
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,
-    "credentials": [],
+    "credentials": [
+      "dist/credentials/AgentSearchWalletApi.credentials.js"
+    ],
     "nodes": [
       "dist/nodes/AgentSearch/AgentSearch.node.js"
     ]

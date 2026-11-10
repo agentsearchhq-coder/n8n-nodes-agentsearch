@@ -33,7 +33,7 @@ import {
 export const FREE_RELAY_URL = 'https://relay.agentsearchhq.com/v1/search';
 export const RELAY_BASE_URL = 'https://relay.agentsearchhq.com';
 export const PORTAL_URL = 'https://agent.pocket.network';
-export const CLIENT_TAG = 'n8n-nodes-agentsearch/0.6.0';
+export const CLIENT_TAG = 'n8n-nodes-agentsearch/0.6.1';
 const DOCS = 'https://agentsearchhq.com/?utm_source=n8n-nodes-agentsearch&utm_medium=package';
 const GUIDE = 'https://agentsearchhq.com/blog/n8n-ai-agent-read-web-pages?utm_source=n8n-nodes-agentsearch&utm_medium=package';
 export const LIMIT_MESSAGE =

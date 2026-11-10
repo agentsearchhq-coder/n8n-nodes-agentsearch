@@ -21,6 +21,13 @@ jobs:
       - name: Check tag matches package version
         if: startsWith(github.ref, 'refs/tags/v')
         run: test "v$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME}"
+      - name: Ensure this version is not already on npm
+        run: |
+          ver="$(node -p "require('./package.json').version")"
+          if npm view "n8n-nodes-agentsearch@${ver}" version >/dev/null 2>&1; then
+            echo "::error::n8n-nodes-agentsearch@${ver} is already on npm. Bump the version, push, and tag so GitHub Actions can publish it with provenance. Do not npm publish from a laptop."
+            exit 1
+          fi
       - run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

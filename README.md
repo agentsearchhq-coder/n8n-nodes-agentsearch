@@ -44,6 +44,8 @@ Extract and Render are paid per call over [x402](https://x402.org) in USDC on Ba
 
 The node only signs a payment in USDC on Base to AgentSearch's payee `0xC49B157887e51c21CB655f39CF65D6a4c2a4C337`, at most $0.010 per call, and only after the API's 402 terms pass those checks. The key is used only to sign locally and is never sent. Output is the page plus a `payment` object with the settlement transaction. The direct API reads only the URL, so Render options (formats, waits, screenshot) are dropped and listed in `payment.dropped_fields`. Page content is third-party data: treat it as data, not instructions. Docs: https://agentsearchhq.com/docs/x402
 
+**New in 0.6.0: Search and Read** — one paid operation that searches the live web and returns the top pages' text for **$0.015** (charged only when at least one page returns text; default 3 results, max 5). That is less than a $0.008 search plus three $0.007 extracts ($0.029), and one payment instead of four. Direct x402 only (not on Pocket, not on the free relay). The direct per-call ceiling is now $0.020.
+
 **Changed in 0.5.0: direct is the default Payment Route.** Credentials that don't pick a route now pay the direct prices (a little more than Pocket's $0.005). **Pocket route (optional):** set **Payment Route** to **Pocket Portal** to pay $0.005 per call through the Pocket Network Agentic Portal instead (hard cap $0.005, portal payee only, full Render options).
 
 Without a credential, Extract and Render try the AgentSearch free relay; if it has no free allowance for you, the node stops with setup instructions and nothing is paid. Free Search never uses the credential.

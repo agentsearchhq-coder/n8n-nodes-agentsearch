@@ -33,7 +33,7 @@ import {
 export const FREE_RELAY_URL = 'https://relay.agentsearchhq.com/v1/search';
 export const RELAY_BASE_URL = 'https://relay.agentsearchhq.com';
 export const PORTAL_URL = 'https://agent.pocket.network';
-export const CLIENT_TAG = 'n8n-nodes-agentsearch/0.5.0';
+export const CLIENT_TAG = 'n8n-nodes-agentsearch/0.6.0';
 const DOCS = 'https://agentsearchhq.com/?utm_source=n8n-nodes-agentsearch&utm_medium=package';
 const GUIDE = 'https://agentsearchhq.com/blog/n8n-ai-agent-read-web-pages?utm_source=n8n-nodes-agentsearch&utm_medium=package';
 export const LIMIT_MESSAGE =
@@ -88,7 +88,7 @@ export class AgentSearch implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
-		description: 'Free live web search for AI agents, plus page Extract ($0.007) and JavaScript Render ($0.010) per call via x402',
+		description: 'Free live web search for AI agents, plus page Extract ($0.007), JavaScript Render ($0.010), and Search + Read ($0.015) per call via x402',
 		defaults: { name: 'AgentSearch' },
 		inputs: [NodeConnectionTypes.Main],
 		outputs: [NodeConnectionTypes.Main],
@@ -98,7 +98,7 @@ export class AgentSearch implements INodeType {
 				name: 'agentSearchWalletApi',
 				required: false,
 				testedBy: 'agentSearchWalletTest',
-				displayOptions: { show: { operation: ['extract', 'render'] } },
+				displayOptions: { show: { operation: ['extract', 'render', 'searchAndRead'] } },
 			},
 		],
 		properties: [
@@ -121,6 +121,12 @@ export class AgentSearch implements INodeType {
 						action: 'Render a dynamic page',
 						description: 'Load a JavaScript-heavy page in a headless browser and read it ($0.010 per call, wallet credential)',
 					},
+					{
+						name: 'Search and Read',
+						value: 'searchAndRead',
+						action: 'Search and read top pages',
+						description: 'Search the live web and return the top pages\' text in one paid call ($0.015, charged only when at least one page returns text; wallet credential; direct x402 only)',
+					},
 				],
 				default: 'freeSearch',
 			},
@@ -131,7 +137,7 @@ export class AgentSearch implements INodeType {
 				default: '',
 				required: true,
 				placeholder: 'latest n8n release',
-				displayOptions: { show: { operation: ['freeSearch'] } },
+				displayOptions: { show: { operation: ['freeSearch', 'searchAndRead'] } },
 			},
 			{
 				displayName: 'Max Results',
@@ -140,6 +146,15 @@ export class AgentSearch implements INodeType {
 				typeOptions: { minValue: 1, maxValue: 5 },
 				default: 5,
 				displayOptions: { show: { operation: ['freeSearch'] } },
+			},
+			{
+				displayName: 'Number of Results to Read',
+				name: 'numResults',
+				type: 'number',
+				typeOptions: { minValue: 1, maxValue: 5 },
+				default: 3,
+				description: 'How many top search results to read (default 3, max 5)',
+				displayOptions: { show: { operation: ['searchAndRead'] } },
 			},
 			{
 				displayName: 'Split Results Into Items',
@@ -193,6 +208,23 @@ export class AgentSearch implements INodeType {
 				default: 20000,
 				description: 'Cap on returned characters per format',
 				displayOptions: { show: { operation: ['extract', 'render'] } },
+			},
+			{
+				displayName: 'Max Characters Per Page',
+				name: 'searchAndReadMaxChars',
+				type: 'number',
+				typeOptions: { minValue: 1, maxValue: 20000 },
+				default: 8000,
+				description: 'Cap on returned characters of page text per result (default 8000, max 20000)',
+				displayOptions: { show: { operation: ['searchAndRead'] } },
+			},
+			{
+				displayName: 'Render Fallback',
+				name: 'renderFallback',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to render at most one thin page in the same $0.015 call if extract returns little text',
+				displayOptions: { show: { operation: ['searchAndRead'] } },
 			},
 			{
 				displayName: 'Options',
@@ -293,6 +325,12 @@ export class AgentSearch implements INodeType {
 				const operation = this.getNodeParameter('operation', i, 'freeSearch') as string;
 				if (operation === 'extract' || operation === 'render') {
 					const r = await readPage.call(this, operation, i, signedAtomic);
+					signedAtomic = r.signedAtomic;
+					out.push({ json: r.json, pairedItem: { item: i } });
+					continue;
+				}
+				if (operation === 'searchAndRead') {
+					const r = await searchAndRead.call(this, i, signedAtomic);
 					signedAtomic = r.signedAtomic;
 					out.push({ json: r.json, pairedItem: { item: i } });
 					continue;
@@ -507,3 +545,149 @@ async function readPage(
 	};
 	return { json: { ...data, payment, portal: direct ? null : envelope.portal ?? null }, signedAtomic };
 }
+
+async function searchAndRead(
+	this: IExecuteFunctions,
+	i: number,
+	signedBefore: bigint,
+): Promise<{ json: IDataObject; signedAtomic: bigint }> {
+	const query = String(this.getNodeParameter('query', i) ?? '').trim();
+	if (!query) throw new NodeOperationError(this.getNode(), 'Query is empty', { itemIndex: i });
+	const numResults = this.getNodeParameter('numResults', i, 3) as number;
+	const maxChars = this.getNodeParameter('searchAndReadMaxChars', i, 8000) as number;
+	const renderFallback = this.getNodeParameter('renderFallback', i, false) as boolean;
+	const body: IDataObject = { query };
+	if (numResults) body.num_results = numResults;
+	if (maxChars) body.max_chars = maxChars;
+	if (renderFallback) body.render_fallback = true;
+
+	let creds: ICredentialDataDecryptedObject | undefined;
+	try {
+		creds = await this.getCredentials<ICredentialDataDecryptedObject>('agentSearchWalletApi', i);
+	} catch {
+		creds = undefined;
+	}
+	if (!creds?.privateKey) {
+		throw new NodeOperationError(
+			this.getNode(),
+			'Search and Read is a paid operation ($0.015 per call in USDC on Base via x402, charged only when at least one page returns text) and no wallet credential is set, so nothing was paid. It is not on the free relay. ' + WALLET_SETUP,
+			{ itemIndex: i },
+		);
+	}
+	if (creds.paymentRoute === 'pocket') {
+		throw new NodeOperationError(
+			this.getNode(),
+			'Search and Read is available only on AgentSearch\'s own x402 API ($0.015 per call when at least one page returns text). Set Payment Route to Direct (the default) on the AgentSearch Wallet API credential. Pocket does not offer this operation. Nothing was signed.',
+			{ itemIndex: i },
+		);
+	}
+
+	let key: bigint;
+	try {
+		key = parsePrivateKey(String(creds.privateKey));
+	} catch (e) {
+		throw new NodeOperationError(this.getNode(), (e as Error).message, { itemIndex: i });
+	}
+	const capUsd = Number(creds.maxSpendPerRunUsd ?? 1);
+	const capAtomic = BigInt(Math.round((Number.isFinite(capUsd) && capUsd > 0 ? capUsd : 1) * 1_000_000));
+	const remaining = capAtomic - signedBefore;
+	const hardCap = DIRECT_MAX_PER_CALL_ATOMIC;
+	const payee = DIRECT_PAYEE;
+	const ceiling = remaining < hardCap ? remaining : hardCap;
+	if (ceiling <= 0n) {
+		throw new NodeOperationError(
+			this.getNode(),
+			`Spend cap reached for this run: ${atomicToUsd(signedBefore)} of ${atomicToUsd(capAtomic)} signed. Raise "Max Spend per Run" on the AgentSearch Wallet API credential to spend more. Nothing was signed.`,
+			{ itemIndex: i },
+		);
+	}
+
+	const url = `${DIRECT_URL}/x402/v1/search_and_read`;
+	const expectRes = '/x402/v1/search_and_read';
+	const unpaid = await post.call(this, url, body);
+	if (unpaid.statusCode !== 402) {
+		throw new NodeOperationError(
+			this.getNode(),
+			`The AgentSearch x402 API answered ${unpaid.statusCode} before payment: ${errorText(unpaid.body)}. Nothing was signed.`,
+			{ itemIndex: i },
+		);
+	}
+	let required: PaymentRequired;
+	try {
+		required = decodeBase64Json<PaymentRequired>(headerOf(unpaid.headers, 'payment-required') ?? '');
+	} catch {
+		throw new NodeOperationError(this.getNode(), "The portal's 402 is not valid x402 v2. Nothing was signed.", { itemIndex: i });
+	}
+	if (required?.x402Version !== 2) throw new NodeOperationError(this.getNode(), 'Unsupported x402 version. Nothing was signed.', { itemIndex: i });
+	const resUrl = String(required.resource?.url ?? '');
+	if (!resUrl.replace(/\/+$/, '').endsWith(expectRes)) {
+		throw new NodeOperationError(this.getNode(), `The 402 is for ${resUrl}, not ${expectRes}. Nothing was signed.`, { itemIndex: i });
+	}
+
+	let accepted;
+	try {
+		accepted = selectAccept(required.accepts, ceiling, payee);
+	} catch (e) {
+		const msg = (e as Error).message;
+		if (ceiling < hardCap && ceiling === remaining) {
+			throw new NodeOperationError(this.getNode(), msg, { itemIndex: i });
+		}
+		if (ceiling < 15000n) {
+			throw new NodeOperationError(
+				this.getNode(),
+				`${msg} Search and Read costs $0.015; raise "Max Spend per Run" or the per-call ceiling to at least 20000 atomic units ($0.020). Nothing was signed.`,
+				{ itemIndex: i },
+			);
+		}
+		throw new NodeOperationError(this.getNode(), msg, { itemIndex: i });
+	}
+	const amount = BigInt(accepted.amount);
+	const { payload, from } = createPaymentPayload(required, accepted, key);
+	const signedAtomic = signedBefore + amount;
+
+	let paid: FullResponse;
+	try {
+		paid = await post.call(this, url, body, { 'PAYMENT-SIGNATURE': encodePaymentHeader(payload) });
+	} catch (e) {
+		throw new NodeOperationError(
+			this.getNode(),
+			`A payment of ${atomicToUsd(amount)} was signed but the paid request failed (${(e as Error).message}). It may or may not be settled; check the wallet before retrying.`,
+			{ itemIndex: i },
+		);
+	}
+	if (paid.statusCode < 200 || paid.statusCode >= 300) {
+		throw new NodeOperationError(
+			this.getNode(),
+			`The AgentSearch x402 API answered ${paid.statusCode}: ${errorText(paid.body)}. A non-2xx answer is not settled, so you should not be charged.`,
+			{ itemIndex: i },
+		);
+	}
+	let receipt: { success?: boolean; transaction?: string } | undefined;
+	const rh = headerOf(paid.headers, 'payment-response');
+	if (rh) {
+		try {
+			receipt = decodeBase64Json(rh);
+		} catch {
+			receipt = undefined;
+		}
+	}
+	const data = paid.body && typeof paid.body === 'object' ? (paid.body as IDataObject) : { result: paid.body as string };
+	const tx = receipt?.transaction || null;
+	const payment: IDataObject = {
+		amount_usd: atomicToUsd(amount),
+		amount_atomic: amount.toString(),
+		asset: 'USDC',
+		asset_address: USDC_BASE,
+		network: BASE_NETWORK,
+		pay_to: payee,
+		payer: from,
+		service_id: 'search_and_read',
+		route: 'agentsearch-x402-direct',
+		settled: receipt?.success ?? false,
+		transaction: tx,
+		...(tx ? { explorer: `https://basescan.org/tx/${tx}` } : {}),
+		run_spent_usd: atomicToUsd(signedAtomic),
+	};
+	return { json: { ...data, payment, portal: null }, signedAtomic };
+}
+

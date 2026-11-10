@@ -28,16 +28,16 @@ test("package.json n8n block", () => {
   assert.equal(p.dependencies, undefined, "no runtime dependencies");
 });
 
-test("backward compatible: credential is optional and only shown for extract/render; freeSearch is the default", () => {
+test("backward compatible: credential is optional and only shown for extract/render/searchAndRead; freeSearch is the default", () => {
   const d = node.description;
   assert.equal(d.version, 1);
   assert.equal(d.credentials.length, 1);
   assert.equal(d.credentials[0].name, new AgentSearchWalletApi().name);
   assert.equal(d.credentials[0].required, false);
-  assert.deepEqual(d.credentials[0].displayOptions.show.operation, ["extract", "render"]);
+  assert.deepEqual(d.credentials[0].displayOptions.show.operation, ["extract", "render", "searchAndRead"]);
   const op = d.properties.find((p) => p.name === "operation");
   assert.equal(op.default, "freeSearch");
-  assert.deepEqual(op.options.map((o) => o.value), ["freeSearch", "extract", "render"]);
+  assert.deepEqual(op.options.map((o) => o.value), ["freeSearch", "extract", "render", "searchAndRead"]);
 });
 
 test("free search (mocked) + split, no credentials touched", async () => {

@@ -90,7 +90,7 @@ test("extract with wallet: 402 -> signs once within limits -> paid 200", async (
       body: { portal: { serviceId: "agentsearch-web-extract-v1" }, data: { url: "https://example.com", markdown: "# Hi", error: null } },
     };
   };
-  const [items] = await node.execute.call(ctx({ operation: "extract", url: "https://example.com" }, http, { privateKey: v.key, maxSpendPerRunUsd: 1 }));
+  const [items] = await node.execute.call(ctx({ operation: "extract", url: "https://example.com" }, http, { paymentRoute: "pocket", privateKey: v.key, maxSpendPerRunUsd: 1 }));
   assert.equal(calls.length, 2);
   assert.equal(calls[0].url, "https://agent.pocket.network/v1/agentsearch-web-extract-v1/v1/extract");
   assert.equal(calls[0].headers["PAYMENT-SIGNATURE"], undefined);
@@ -113,7 +113,7 @@ test("render with wallet uses the render service and options", async () => {
     if (calls.length === 1) return { statusCode: 402, headers: { "PAYMENT-REQUIRED": b64(renderReq) }, body: {} };
     return { statusCode: 200, headers: {}, body: { data: { url: "https://x.dev", markdown: "app" } } };
   };
-  const [items] = await node.execute.call(ctx({ operation: "render", url: "https://x.dev", renderFormats: ["markdown", "links"], maxChars: 1000, renderOptions: { waitUntil: "networkidle", waitMs: 500 } }, http, { privateKey: vectors[1].key }));
+  const [items] = await node.execute.call(ctx({ operation: "render", url: "https://x.dev", renderFormats: ["markdown", "links"], maxChars: 1000, renderOptions: { waitUntil: "networkidle", waitMs: 500 } }, http, { paymentRoute: "pocket", privateKey: vectors[1].key }));
   assert.equal(calls[0].url, "https://agent.pocket.network/v1/agentsearch-web-render-v1/v1/render");
   assert.deepEqual(calls[0].body, { url: "https://x.dev", formats: ["markdown", "links"], max_chars: 1000, wait_until: "networkidle", wait_ms: 500 });
   assert.equal(items[0].json.payment.settled, false);
@@ -124,7 +124,7 @@ test("refuses to sign for a different payee or a higher price", async () => {
     let n = 0;
     const r2 = { ...required, accepts: [{ ...required.accepts[0], ...bad }] };
     await assert.rejects(
-      node.execute.call(ctx({ operation: "extract", url: "https://example.com" }, async () => { n++; return { statusCode: 402, headers: { "payment-required": b64(r2) }, body: {} }; }, { privateKey: vectors[0].key })),
+      node.execute.call(ctx({ operation: "extract", url: "https://example.com" }, async () => { n++; return { statusCode: 402, headers: { "payment-required": b64(r2) }, body: {} }; }, { paymentRoute: "pocket", privateKey: vectors[0].key })),
       /Nothing was signed/,
     );
     assert.equal(n, 1, "no paid retry");
@@ -133,7 +133,7 @@ test("refuses to sign for a different payee or a higher price", async () => {
 
 test("per-run spend cap stops signing", async () => {
   let n = 0;
-  const c = ctx({ operation: "extract", url: "https://example.com" }, async () => { n++; return n % 2 ? { statusCode: 402, headers: { "payment-required": b64(required) }, body: {} } : { statusCode: 200, headers: {}, body: { data: {} } }; }, { privateKey: vectors[0].key, maxSpendPerRunUsd: 0.005 });
+  const c = ctx({ operation: "extract", url: "https://example.com" }, async () => { n++; return n % 2 ? { statusCode: 402, headers: { "payment-required": b64(required) }, body: {} } : { statusCode: 200, headers: {}, body: { data: {} } }; }, { paymentRoute: "pocket", privateKey: vectors[0].key, maxSpendPerRunUsd: 0.005 });
   c.getInputData = () => [{ json: {} }, { json: {} }];
   await assert.rejects(node.execute.call(c), /Spend cap reached/);
   assert.equal(n, 2, "second item never contacted the portal");

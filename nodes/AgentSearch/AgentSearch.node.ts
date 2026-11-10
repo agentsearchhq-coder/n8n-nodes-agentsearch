@@ -33,11 +33,11 @@ import {
 export const FREE_RELAY_URL = 'https://relay.agentsearchhq.com/v1/search';
 export const RELAY_BASE_URL = 'https://relay.agentsearchhq.com';
 export const PORTAL_URL = 'https://agent.pocket.network';
-export const CLIENT_TAG = 'n8n-nodes-agentsearch/0.3.0';
+export const CLIENT_TAG = 'n8n-nodes-agentsearch/0.5.0';
 const DOCS = 'https://agentsearchhq.com/?utm_source=n8n-nodes-agentsearch&utm_medium=package';
 const GUIDE = 'https://agentsearchhq.com/blog/n8n-ai-agent-read-web-pages?utm_source=n8n-nodes-agentsearch&utm_medium=package';
 export const LIMIT_MESSAGE =
-	`Free AgentSearch limit reached (25 searches per day per IP; resets daily). For unlimited search plus extract (static pages) and render (JavaScript-heavy pages, or when extract returns thin content), use the paid API ($0.005 per call via the Pocket Agentic Portal, x402 USDC on Base). Docs: ${DOCS}`;
+	`Free AgentSearch limit reached (25 searches per day per IP; resets daily). For unlimited search plus extract (static pages) and render (JavaScript-heavy pages, or when extract returns thin content), use the paid API (AgentSearch's own x402 API on Base: Extract $0.007, Render $0.010 per call in USDC; Pocket route $0.005 optional). Docs: ${DOCS}`;
 
 type PageOperation = 'extract' | 'render';
 export const PORTAL_SERVICES: Record<PageOperation, { serviceId: string; path: string }> = {
@@ -46,14 +46,14 @@ export const PORTAL_SERVICES: Record<PageOperation, { serviceId: string; path: s
 };
 
 export const WALLET_SETUP =
-	'Add an "AgentSearch Wallet API" credential to this node: the private key of a NEW wallet made only for this, funded with a little USDC on Base (for example $1 = 200 calls; no ETH needed). Each call costs $0.005, paid over x402 through the Pocket Network Agentic Portal. Free Search stays free and needs no credential. Guide: ' +
+	'Add an "AgentSearch Wallet API" credential to this node: the private key of a NEW wallet made only for this, funded with a little USDC on Base (for example $1 = about 100-140 calls; no ETH needed). Each call is paid over x402 to AgentSearch\'s own API on Base (Extract $0.007, Render $0.010; failed calls are not charged), or $0.005 through the Pocket Network Agentic Portal if you pick that Payment Route. Free Search stays free and needs no credential. Guide: ' +
 	GUIDE;
 
 export function paidOnlyMessage(op: PageOperation): string {
-	return `${op === 'extract' ? 'Extract' : 'Render'} is a paid operation ($0.005 per call in USDC on Base) and no wallet credential is set, so nothing was paid. ${WALLET_SETUP}`;
+	return `${op === 'extract' ? 'Extract' : 'Render'} is a paid operation (${op === 'extract' ? '$0.007' : '$0.010'} per call in USDC on Base via x402) and no wallet credential is set, so nothing was paid. ${WALLET_SETUP}`;
 }
 export function trialLimitMessage(op: PageOperation): string {
-	return `Free ${op} allowance for today is used up. Continue at $0.005 per call: ${WALLET_SETUP}`;
+	return `Free ${op} allowance for today is used up. Continue at ${op === 'extract' ? '$0.007' : '$0.010'} per call (x402, USDC on Base): ${WALLET_SETUP}`;
 }
 
 const headerOf = (headers: unknown, name: string): string | undefined => {
@@ -88,7 +88,7 @@ export class AgentSearch implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
-		description: 'Free live web search for AI agents, plus page Extract and JavaScript Render ($0.005 per call)',
+		description: 'Free live web search for AI agents, plus page Extract ($0.007) and JavaScript Render ($0.010) per call via x402',
 		defaults: { name: 'AgentSearch' },
 		inputs: [NodeConnectionTypes.Main],
 		outputs: [NodeConnectionTypes.Main],
@@ -113,13 +113,13 @@ export class AgentSearch implements INodeType {
 						name: 'Extract Page',
 						value: 'extract',
 						action: 'Extract a page as markdown',
-						description: 'Read a page as clean markdown or text ($0.005 per call, wallet credential)',
+						description: 'Read a page as clean markdown or text ($0.007 per call, wallet credential)',
 					},
 					{
 						name: 'Render Page',
 						value: 'render',
 						action: 'Render a dynamic page',
-						description: 'Load a JavaScript-heavy page in a headless browser and read it ($0.005 per call, wallet credential)',
+						description: 'Load a JavaScript-heavy page in a headless browser and read it ($0.010 per call, wallet credential)',
 					},
 				],
 				default: 'freeSearch',
@@ -278,7 +278,7 @@ export class AgentSearch implements INodeType {
 				if (!Number.isFinite(cap) || cap <= 0) return { status: 'Error', message: 'Max Spend per Run must be a positive number of USD.' };
 				return {
 					status: 'OK',
-					message: `Valid key for wallet ${address}. Fund it with USDC on Base (no ETH needed); each Extract or Render call pays $0.005.`,
+					message: `Valid key for wallet ${address}. Fund it with USDC on Base (no ETH needed); each Extract ($0.007) or Render ($0.010) call pays AgentSearch's x402 API ($0.005 on the Pocket route).`,
 				};
 			},
 		},
@@ -405,7 +405,8 @@ async function readPage(
 	const capUsd = Number(creds.maxSpendPerRunUsd ?? 1);
 	const capAtomic = BigInt(Math.round((Number.isFinite(capUsd) && capUsd > 0 ? capUsd : 1) * 1_000_000));
 	const remaining = capAtomic - signedBefore;
-	const direct = creds.paymentRoute === 'direct';
+	// 0.5.0: direct is the default; only an explicit 'pocket' uses the Pocket portal.
+	const direct = creds.paymentRoute !== 'pocket';
 	const hardCap = direct ? DIRECT_MAX_PER_CALL_ATOMIC : MAX_PER_CALL_ATOMIC;
 	const payee = direct ? DIRECT_PAYEE : PORTAL_PAYEE;
 	const ceiling = remaining < hardCap ? remaining : hardCap;

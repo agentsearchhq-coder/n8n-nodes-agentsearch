@@ -17,13 +17,24 @@ function ctx(params, httpRequest, creds) {
 const terms = (op, over = {}) => ({ x402Version: 2, resource: { url: `https://api.agentsearchhq.com/x402/v1/${op}` },
   accepts: [{ scheme: "exact", network: "eip155:8453", amount: PRICES[op], asset: USDC_BASE, payTo: DIRECT_PAYEE, maxTimeoutSeconds: 300, extra: { name: "USD Coin", version: "2" }, ...over }] });
 
-test("credential: Payment Route option defaults to pocket (existing credentials unchanged)", () => {
+test("credential: Payment Route defaults to direct since 0.5.0; Pocket stays selectable", () => {
   const p = new AgentSearchWalletApi().properties.find((x) => x.name === "paymentRoute");
-  assert.equal(p.default, "pocket");
-  assert.deepEqual(p.options.map((o) => o.value), ["pocket", "direct"]);
+  assert.equal(p.default, "direct");
+  assert.deepEqual(p.options.map((o) => o.value), ["direct", "pocket"]);
 });
 
 for (const op of ["extract", "render"]) {
+  test(`0.5.0 default: a credential with no Payment Route pays direct for ${op}`, async () => {
+    const calls = [];
+    const http = async (r) => {
+      calls.push(r);
+      if (calls.length === 1) return { statusCode: 402, headers: { "payment-required": b64(terms(op)) }, body: {} };
+      return { statusCode: 200, headers: { "payment-response": b64({ success: true, transaction: "0x" + "ab".repeat(32) }) }, body: { url: "https://example.com/", markdown: "# Hi" } };
+    };
+    const [items] = await node.execute.call(ctx({ operation: op, url: "https://example.com" }, http, { privateKey: vectors[0].key, maxSpendPerRunUsd: 1 }));
+    assert.equal(calls[0].url, `https://api.agentsearchhq.com/x402/v1/${op}`);
+    assert.equal(items[0].json.payment.pay_to, DIRECT_PAYEE);
+  });
   test(`direct ${op}: 402 -> signs ${PRICES[op]} to AgentSearch payee -> raw result + receipt`, async () => {
     const v = vectors[0]; const calls = [];
     const http = async (r) => {

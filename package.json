@@ -1,12 +1,12 @@
 {
   "name": "n8n-nodes-agentsearch",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "author": {
     "name": "AgentSearch",
     "email": "AgentSearchhq@gmail.com",
     "url": "https://agentsearchhq.com"
   },
-  "description": "n8n community node for AgentSearch: free live web search for AI agents (no credentials), plus page Extract and JavaScript Render at $0.005 per call (USDC on Base via x402)",
+  "description": "n8n community node for AgentSearch: free live web search for AI agents (no credentials), plus page Extract ($0.007) and JavaScript Render ($0.010) per call, paid in USDC on Base via x402 to AgentSearch's own API",
   "keywords": [
     "n8n-community-node-package",
     "n8n",

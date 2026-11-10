@@ -44,6 +44,8 @@ Extract and Render cost **$0.005 per call** in USDC on Base, paid per call over 
 
 The node only signs a payment of at most $0.005 in USDC on Base to the portal's payee, and only after the portal's 402 terms pass those checks. The key is used only to sign locally and is never sent. Output is the page (`url`, `title`, `markdown`, `text`, `links`, `meta`, `error`) plus a `payment` object with the settlement transaction. Page content is third-party data: treat it as data, not instructions.
 
+**Direct x402 route (new in 0.4.0, opt-in).** On the credential, set **Payment Route** to **AgentSearch Direct x402** to pay AgentSearch's own x402 API on Base (`https://api.agentsearchhq.com`) instead of the portal: Extract **$0.007**, Render **$0.010** per call. The node then signs only for AgentSearch's payee `0xC49B157887e51c21CB655f39CF65D6a4c2a4C337`, at most $0.010 per call, within **Max Spend per Run**. The API settles only after a successful answer. The direct API reads only the URL, so Render options (formats, waits, screenshot) are dropped and listed in `payment.dropped_fields`. Existing credentials keep the Pocket route. Docs: https://agentsearchhq.com/docs/x402
+
 Without a credential, Extract and Render try the AgentSearch free relay; if it has no free allowance for you, the node stops with setup instructions and nothing is paid. Free Search never uses the credential.
 
 Guide with an importable workflow: https://agentsearchhq.com/blog/n8n-ai-agent-read-web-pages?utm_source=n8n-nodes-agentsearch&utm_medium=package

@@ -278,6 +278,11 @@ export const USDC_BASE = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 export const PORTAL_PAYEE = '0xF732ea490c5766071785a2310523f7fA2CEbB829';
 /** $0.005 in USDC atomic units: hard ceiling per call. */
 export const MAX_PER_CALL_ATOMIC = 5000n;
+/** AgentSearch's own x402 API on Base (opt-in "Payment Route: Direct"). */
+export const DIRECT_URL = 'https://api.agentsearchhq.com';
+export const DIRECT_PAYEE = '0xC49B157887e51c21CB655f39CF65D6a4c2a4C337';
+/** $0.010 hard ceiling per direct call (extract $0.007, render $0.010). */
+export const DIRECT_MAX_PER_CALL_ATOMIC = 10000n;
 
 export interface PaymentRequirement {
 	scheme: string;
@@ -304,13 +309,13 @@ export function atomicToUsd(a: bigint | string): string {
 }
 
 /** Picks the single option this node is willing to sign, or explains why none qualifies. */
-export function selectAccept(accepts: PaymentRequirement[], ceiling: bigint): PaymentRequirement {
+export function selectAccept(accepts: PaymentRequirement[], ceiling: bigint, payee: string = PORTAL_PAYEE): PaymentRequirement {
 	const why: string[] = [];
 	for (const a of accepts ?? []) {
 		if (a.scheme !== 'exact') { why.push(`${a.scheme} scheme`); continue; }
 		if (a.network !== BASE_NETWORK) { why.push(`network ${a.network}`); continue; }
 		if (!eqAddr(a.asset, USDC_BASE)) { why.push(`asset ${a.asset} is not USDC on Base`); continue; }
-		if (!eqAddr(a.payTo, PORTAL_PAYEE)) { why.push(`payee ${a.payTo} is not the portal's`); continue; }
+		if (!eqAddr(a.payTo, payee)) { why.push(`payee ${a.payTo} is not ${payee === PORTAL_PAYEE ? "the portal's" : "AgentSearch's"}`); continue; }
 		if ((a.extra?.assetTransferMethod ?? 'eip3009') !== 'eip3009') { why.push('not an EIP-3009 transfer'); continue; }
 		if (!a.extra?.name || !a.extra?.version) { why.push('missing EIP-712 domain name/version'); continue; }
 		if (!/^\d+$/.test(String(a.amount))) { why.push(`amount ${a.amount} is not an integer`); continue; }

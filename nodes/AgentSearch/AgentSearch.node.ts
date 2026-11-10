@@ -22,6 +22,9 @@ import {
 	MAX_PER_CALL_ATOMIC,
 	parsePrivateKey,
 	PORTAL_PAYEE,
+	DIRECT_MAX_PER_CALL_ATOMIC,
+	DIRECT_PAYEE,
+	DIRECT_URL,
 	selectAccept,
 	USDC_BASE,
 	type PaymentRequired,
@@ -402,7 +405,10 @@ async function readPage(
 	const capUsd = Number(creds.maxSpendPerRunUsd ?? 1);
 	const capAtomic = BigInt(Math.round((Number.isFinite(capUsd) && capUsd > 0 ? capUsd : 1) * 1_000_000));
 	const remaining = capAtomic - signedBefore;
-	const ceiling = remaining < MAX_PER_CALL_ATOMIC ? remaining : MAX_PER_CALL_ATOMIC;
+	const direct = creds.paymentRoute === 'direct';
+	const hardCap = direct ? DIRECT_MAX_PER_CALL_ATOMIC : MAX_PER_CALL_ATOMIC;
+	const payee = direct ? DIRECT_PAYEE : PORTAL_PAYEE;
+	const ceiling = remaining < hardCap ? remaining : hardCap;
 	if (ceiling <= 0n) {
 		throw new NodeOperationError(
 			this.getNode(),
@@ -412,14 +418,18 @@ async function readPage(
 	}
 
 	const { serviceId, path } = PORTAL_SERVICES[op];
-	const url = `${PORTAL_URL}/v1/${serviceId}${path}`;
+	const url = direct ? `${DIRECT_URL}/x402/v1/${op}` : `${PORTAL_URL}/v1/${serviceId}${path}`;
+	const expectRes = direct ? `/x402/v1/${op}` : `/v1/${serviceId}`;
+	// The direct API reads only {url}; other options are dropped (and reported).
+	const dropped = direct ? Object.keys(body).filter((k) => k !== 'url') : [];
+	const sendBody: IDataObject = direct ? { url: body.url } : body;
 
 	// 1) Unpaid request: expect 402 with the PAYMENT-REQUIRED terms.
-	const unpaid = await post.call(this, url, body);
+	const unpaid = await post.call(this, url, sendBody);
 	if (unpaid.statusCode !== 402) {
 		throw new NodeOperationError(
 			this.getNode(),
-			`The payment portal answered ${unpaid.statusCode} before payment: ${errorText(unpaid.body)}. Nothing was signed.`,
+			`${direct ? 'The AgentSearch x402 API' : 'The payment portal'} answered ${unpaid.statusCode} before payment: ${errorText(unpaid.body)}. Nothing was signed.`,
 			{ itemIndex: i },
 		);
 	}
@@ -431,14 +441,14 @@ async function readPage(
 	}
 	if (required?.x402Version !== 2) throw new NodeOperationError(this.getNode(), 'Unsupported x402 version. Nothing was signed.', { itemIndex: i });
 	const resUrl = String(required.resource?.url ?? '');
-	if (!resUrl.replace(/\/+$/, '').endsWith(`/v1/${serviceId}`)) {
-		throw new NodeOperationError(this.getNode(), `The 402 is for ${resUrl}, not ${serviceId}. Nothing was signed.`, { itemIndex: i });
+	if (!resUrl.replace(/\/+$/, '').endsWith(expectRes)) {
+		throw new NodeOperationError(this.getNode(), `The 402 is for ${resUrl}, not ${expectRes}. Nothing was signed.`, { itemIndex: i });
 	}
 
 	// 2) Every limit is checked before signing.
 	let accepted;
 	try {
-		accepted = selectAccept(required.accepts, ceiling);
+		accepted = selectAccept(required.accepts, ceiling, payee);
 	} catch (e) {
 		throw new NodeOperationError(this.getNode(), (e as Error).message, { itemIndex: i });
 	}
@@ -449,7 +459,7 @@ async function readPage(
 	// 3) Retry once with PAYMENT-SIGNATURE.
 	let paid: FullResponse;
 	try {
-		paid = await post.call(this, url, body, { 'PAYMENT-SIGNATURE': encodePaymentHeader(payload) });
+		paid = await post.call(this, url, sendBody, { 'PAYMENT-SIGNATURE': encodePaymentHeader(payload) });
 	} catch (e) {
 		throw new NodeOperationError(
 			this.getNode(),
@@ -460,7 +470,7 @@ async function readPage(
 	if (paid.statusCode < 200 || paid.statusCode >= 300) {
 		throw new NodeOperationError(
 			this.getNode(),
-			`The portal answered ${paid.statusCode}: ${errorText(paid.body)}. A non-2xx answer is not settled, so you should not be charged.`,
+			`${direct ? 'The AgentSearch x402 API' : 'The portal'} answered ${paid.statusCode}: ${errorText(paid.body)}. A non-2xx answer is not settled, so you should not be charged.`,
 			{ itemIndex: i },
 		);
 	}
@@ -474,7 +484,9 @@ async function readPage(
 		}
 	}
 	const envelope = (paid.body ?? {}) as { data?: IDataObject; portal?: IDataObject };
-	const data = envelope.data && typeof envelope.data === 'object' ? envelope.data : {};
+	const data = direct
+		? (paid.body && typeof paid.body === 'object' ? (paid.body as IDataObject) : { result: paid.body as string })
+		: envelope.data && typeof envelope.data === 'object' ? envelope.data : {};
 	const tx = receipt?.transaction || null;
 	const payment: IDataObject = {
 		amount_usd: atomicToUsd(amount),
@@ -482,13 +494,15 @@ async function readPage(
 		asset: 'USDC',
 		asset_address: USDC_BASE,
 		network: BASE_NETWORK,
-		pay_to: PORTAL_PAYEE,
+		pay_to: payee,
 		payer: from,
 		service_id: serviceId,
+		route: direct ? 'agentsearch-x402-direct' : 'pocket',
+		...(dropped.length ? { dropped_fields: dropped } : {}),
 		settled: receipt?.success ?? false,
 		transaction: tx,
 		...(tx ? { explorer: `https://basescan.org/tx/${tx}` } : {}),
 		run_spent_usd: atomicToUsd(signedAtomic),
 	};
-	return { json: { ...data, payment, portal: envelope.portal ?? null }, signedAtomic };
+	return { json: { ...data, payment, portal: direct ? null : envelope.portal ?? null }, signedAtomic };
 }

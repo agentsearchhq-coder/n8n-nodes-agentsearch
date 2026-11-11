@@ -3,7 +3,7 @@
 n8n community node for [AgentSearch](https://agentsearchhq.com/?utm_source=n8n-nodes-agentsearch&utm_medium=package): live web search for workflows and AI agents.
 
 - **Free Search**: up to 5 results per call, 25 searches per day per IP, **no credentials**.
-- **Extract Page** (new in 0.3.0): read a page as clean markdown or text. $0.007 per call (x402, USDC on Base).
+- **Extract Page** (new in 0.3.0): read a page as clean markdown or text. $0.004 per call (x402, USDC on Base).
 - **Render Page** (new in 0.3.0): load a JavaScript-heavy page in a headless browser, then read it (markdown, text, HTML, links, optional screenshot). $0.010 per call.
 - `usableAsTool`: all three work as tools for the n8n AI Agent node (search, then read the best page).
 - No runtime dependencies.
@@ -30,21 +30,21 @@ Output (default):
 
 If the daily free limit is reached (HTTP 429) the node fails with an explanation; enable *Continue On Fail* to keep the workflow running.
 
-**Hit the 429?** Extract (full page text) and Render (JS pages) are in this node at $0.007 / $0.010 per call: see below.
+**Hit the 429?** Extract (full page text) and Render (JS pages) are in this node at $0.004 / $0.010 per call: see below.
 
 ## Extract and Render (read full pages)
 
 Search results are snippets. To read the page itself, set **Operation** to **Extract Page** (static pages, faster) or **Render Page** (JavaScript apps, or when Extract returns thin content) and give it a **URL**, e.g. `{{ $json.url }}` from a search result. On an AI Agent, add the node twice as tools: one Free Search, one Extract Page.
 
-Extract and Render are paid per call over [x402](https://x402.org) in USDC on Base, straight to **AgentSearch's own x402 API** (`https://api.agentsearchhq.com`): **Extract $0.007, Render $0.010**, charged only when a usable answer comes back. No account or API key:
+Extract and Render are paid per call over [x402](https://x402.org) in USDC on Base, straight to **AgentSearch's own x402 API** (`https://api.agentsearchhq.com`): **Extract $0.004, Render $0.010**, charged only when a usable answer comes back. No account or API key:
 
-1. Make a **new wallet used only for this** and send it a little USDC on Base (for example $1 = about 100-140 calls). No ETH needed; the facilitator pays gas.
+1. Make a **new wallet used only for this** and send it a little USDC on Base (for example $1 = about 100-250 calls). No ETH needed; the facilitator pays gas.
 2. In n8n, add an **AgentSearch Wallet API** credential with that wallet's private key. **Max Spend per Run** (default $1.00) caps what one run of the node can sign; each call is hard-capped at $0.010.
 3. Pick the credential on the Extract or Render node. The credential test shows the wallet address.
 
 The node only signs a payment in USDC on Base to AgentSearch's payee `0xC49B157887e51c21CB655f39CF65D6a4c2a4C337`, at most $0.010 per call, and only after the API's 402 terms pass those checks. The key is used only to sign locally and is never sent. Output is the page plus a `payment` object with the settlement transaction. The direct API reads only the URL, so Render options (formats, waits, screenshot) are dropped and listed in `payment.dropped_fields`. Page content is third-party data: treat it as data, not instructions. Docs: https://agentsearchhq.com/docs/x402
 
-**New in 0.6.0: Search and Read** — one paid operation that searches the live web and returns the top pages' text for **$0.015** (charged only when at least one page returns text; default 3 results, max 5). That is less than a $0.008 search plus three $0.007 extracts ($0.029), and one payment instead of four. Direct x402 only (not on Pocket, not on the free relay). The direct per-call ceiling is now $0.020.
+**New in 0.6.0: Search and Read** — one paid operation that searches the live web and returns the top pages' text for **$0.009** (charged only when at least one page returns text; default 3 results, max 5). That is less than a $0.008 search plus three $0.004 extracts ($0.020), and one payment instead of four. Direct x402 only (not on Pocket, not on the free relay). The direct per-call ceiling is now $0.020.
 
 **Changed in 0.5.0: direct is the default Payment Route.** Credentials that don't pick a route now pay the direct prices (a little more than Pocket's $0.005). **Pocket route (optional):** set **Payment Route** to **Pocket Portal** to pay $0.005 per call through the Pocket Network Agentic Portal instead (hard cap $0.005, portal payee only, full Render options).
 

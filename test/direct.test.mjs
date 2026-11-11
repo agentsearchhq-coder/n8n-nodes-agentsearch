@@ -9,7 +9,7 @@ const { DIRECT_PAYEE, PORTAL_PAYEE, USDC_BASE } = require("../dist/nodes/AgentSe
 const { vectors } = JSON.parse(readFileSync(new URL("./x402-vectors.json", import.meta.url)));
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64");
 const node = new AgentSearch();
-const PRICES = { extract: "7000", render: "10000", search_and_read: "15000" };
+const PRICES = { extract: "4000", render: "10000", search_and_read: "9000" };
 function ctx(params, httpRequest, creds) {
   return { getInputData: () => [{ json: {} }], getNodeParameter: (n, _i, d) => (n in params ? params[n] : d),
     getNode: () => ({ name: "AgentSearch", type: "agentSearch" }), getCredentials: async () => creds, continueOnFail: () => false, helpers: { httpRequest } };
@@ -81,7 +81,7 @@ test("E2E: direct extract + render against the local mock direct API (real signa
   }
 });
 
-test("direct searchAndRead: 402 -> signs 15000 to AgentSearch payee -> result + receipt", async () => {
+test("direct searchAndRead: 402 -> signs 9000 to AgentSearch payee -> result + receipt", async () => {
   const v = vectors[0]; const calls = [];
   const http = async (r) => {
     calls.push(r);
@@ -93,10 +93,10 @@ test("direct searchAndRead: 402 -> signs 15000 to AgentSearch payee -> result + 
   assert.deepEqual(calls[0].body, { query: "q", num_results: 3, max_chars: 8000 });
   const sent = JSON.parse(Buffer.from(calls[1].headers["PAYMENT-SIGNATURE"], "base64").toString());
   assert.equal(sent.payload.authorization.to, DIRECT_PAYEE);
-  assert.equal(sent.payload.authorization.value, "15000");
+  assert.equal(sent.payload.authorization.value, "9000");
   assert.equal(items[0].json.payment.pay_to, DIRECT_PAYEE);
   assert.equal(items[0].json.payment.route, "agentsearch-x402-direct");
-  assert.equal(items[0].json.payment.amount_atomic, "15000");
+  assert.equal(items[0].json.payment.amount_atomic, "9000");
   assert.equal(items[0].json.payment.settled, true);
 });
 

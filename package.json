@@ -6,7 +6,7 @@
     "email": "AgentSearchhq@gmail.com",
     "url": "https://agentsearchhq.com"
   },
-  "description": "n8n community node for AgentSearch: free live web search for AI agents (no credentials), plus page Extract ($0.007) and JavaScript Render ($0.010) per call, paid in USDC on Base via x402 to AgentSearch's own API",
+  "description": "n8n community node for AgentSearch: free live web search for AI agents (no credentials), plus page Extract ($0.004) and JavaScript Render ($0.010) per call, paid in USDC on Base via x402 to AgentSearch's own API",
   "keywords": [
     "n8n-community-node-package",
     "n8n",

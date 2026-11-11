@@ -281,7 +281,7 @@ export const MAX_PER_CALL_ATOMIC = 5000n;
 /** AgentSearch's own x402 API on Base (opt-in "Payment Route: Direct"). */
 export const DIRECT_URL = 'https://api.agentsearchhq.com';
 export const DIRECT_PAYEE = '0xC49B157887e51c21CB655f39CF65D6a4c2a4C337';
-/** $0.020 hard ceiling per direct call (extract $0.007, render $0.010, search_and_read $0.015). */
+/** $0.020 hard ceiling per direct call (extract $0.004, render $0.010, search_and_read $0.009). */
 export const DIRECT_MAX_PER_CALL_ATOMIC = 20000n;
 
 export interface PaymentRequirement {

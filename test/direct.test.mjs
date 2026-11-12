@@ -114,3 +114,61 @@ test("searchAndRead with no wallet refuses and never hits the free relay", async
   await assert.rejects(node.execute.call(c), /no wallet credential is set/i);
   assert.equal(n, 0);
 });
+
+// 0.7.0: News Search and Screenshot (direct x402 only), filters on news and Search and Read.
+const PRICES07 = { news: "8000", screenshot: "10000", search_and_read: "9000" };
+const terms07 = (path) => ({ x402Version: 2, resource: { url: `https://api.agentsearchhq.com/x402/v1/${path}` },
+  accepts: [{ scheme: "exact", network: "eip155:8453", amount: PRICES07[path], asset: USDC_BASE, payTo: DIRECT_PAYEE, maxTimeoutSeconds: 300, extra: { name: "USD Coin", version: "2" } }] });
+const paidHttp = (path, okBody, calls) => async (r) => {
+  calls.push(r);
+  if (calls.length === 1) return { statusCode: 402, headers: { "payment-required": b64(terms07(path)) }, body: {} };
+  return { statusCode: 200, headers: { "payment-response": b64({ success: true, transaction: "0x" + "cd".repeat(32) }) }, body: okBody };
+};
+const wallet = () => ({ privateKey: vectors[0].key, maxSpendPerRunUsd: 1 });
+
+test("0.7.0 news: pays $0.008 direct with max_results and filters", async () => {
+  const calls = [];
+  const [items] = await node.execute.call(ctx({ operation: "news", query: "base l2", newsMaxResults: 7,
+    filters: { freshness: "day", country: "US", include_domains: "reuters.com, apnews.com", exclude_domains: "" } },
+    paidHttp("news", { results: [{ title: "t", url: "https://reuters.com/x", date: "1 hour ago" }] }, calls), wallet()));
+  assert.equal(calls[0].url, "https://api.agentsearchhq.com/x402/v1/news");
+  assert.deepEqual(calls[0].body, { query: "base l2", max_results: 7, freshness: "day", country: "us", include_domains: ["reuters.com", "apnews.com"] });
+  assert.equal(items[0].json.payment.amount_atomic, "8000");
+  assert.equal(items[0].json.payment.service_id, "news");
+  assert.equal(items[0].json.results.length, 1);
+});
+
+test("0.7.0 searchAndRead forwards filters", async () => {
+  const calls = [];
+  await node.execute.call(ctx({ operation: "searchAndRead", query: "q", filters: { language: "es", date_from: "2026-11-01" } },
+    paidHttp("search_and_read", { results: [] }, calls), wallet()));
+  assert.equal(calls[0].body.language, "es");
+  assert.equal(calls[0].body.date_from, "2026-11-01");
+});
+
+test("0.7.0 screenshot: pays $0.010, returns binary image and no base64 in json", async () => {
+  const calls = [];
+  const png = Buffer.from("fakepng").toString("base64");
+  const [items] = await node.execute.call(ctx({ operation: "screenshot", url: "https://example.com", screenshotFormat: "png",
+    screenshotOptions: { fullPage: true, width: 390, height: 844 } },
+    paidHttp("screenshot", { url: "https://example.com/", title: "Ex", screenshot: { format: "png", width: 390, height: 844, base64: png } }, calls), wallet()));
+  assert.equal(calls[0].url, "https://api.agentsearchhq.com/x402/v1/screenshot");
+  assert.deepEqual(calls[0].body, { url: "https://example.com", format: "png", full_page: true, viewport: { width: 390, height: 844 } });
+  assert.equal(items[0].json.payment.amount_atomic, "10000");
+  assert.equal(items[0].json.screenshot.base64, undefined);
+  assert.equal(items[0].binary.data.mimeType, "image/png");
+  assert.equal(items[0].binary.data.data, png);
+});
+
+for (const op of ["news", "screenshot"]) {
+  test(`0.7.0 ${op}: no credential -> nothing signed, clear message`, async () => {
+    const calls = [];
+    await assert.rejects(node.execute.call(ctx({ operation: op, query: "q", url: "https://example.com" }, async (r) => { calls.push(r); }, undefined)), /paid operation/);
+    assert.equal(calls.length, 0);
+  });
+  test(`0.7.0 ${op}: Pocket route refused before any request`, async () => {
+    const calls = [];
+    await assert.rejects(node.execute.call(ctx({ operation: op, query: "q", url: "https://example.com" }, async (r) => { calls.push(r); }, { ...wallet(), paymentRoute: "pocket" })), /only on AgentSearch's own x402 API/);
+    assert.equal(calls.length, 0);
+  });
+}

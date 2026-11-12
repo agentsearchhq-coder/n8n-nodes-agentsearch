@@ -1,4 +1,5 @@
 import type {
+	IBinaryKeyData,
 	ICredentialDataDecryptedObject,
 	ICredentialTestFunctions,
 	ICredentialsDecrypted,
@@ -33,7 +34,7 @@ import {
 export const FREE_RELAY_URL = 'https://relay.agentsearchhq.com/v1/search';
 export const RELAY_BASE_URL = 'https://relay.agentsearchhq.com';
 export const PORTAL_URL = 'https://agent.pocket.network';
-export const CLIENT_TAG = 'n8n-nodes-agentsearch/0.6.1';
+export const CLIENT_TAG = 'n8n-nodes-agentsearch/0.7.0';
 const DOCS = 'https://agentsearchhq.com/?utm_source=n8n-nodes-agentsearch&utm_medium=package';
 const GUIDE = 'https://agentsearchhq.com/blog/n8n-ai-agent-read-web-pages?utm_source=n8n-nodes-agentsearch&utm_medium=package';
 export const LIMIT_MESSAGE =
@@ -88,7 +89,7 @@ export class AgentSearch implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
-		description: 'Free live web search for AI agents, plus page Extract ($0.004), JavaScript Render ($0.010), and Search + Read ($0.009) per call via x402',
+		description: 'Free live web search for AI agents, plus News Search ($0.008), page Extract ($0.004), JavaScript Render ($0.010), Screenshot ($0.010), and Search + Read ($0.009) per call via x402',
 		defaults: { name: 'AgentSearch' },
 		inputs: [NodeConnectionTypes.Main],
 		outputs: [NodeConnectionTypes.Main],
@@ -98,7 +99,7 @@ export class AgentSearch implements INodeType {
 				name: 'agentSearchWalletApi',
 				required: false,
 				testedBy: 'agentSearchWalletTest',
-				displayOptions: { show: { operation: ['extract', 'render', 'searchAndRead'] } },
+				displayOptions: { show: { operation: ['extract', 'render', 'searchAndRead', 'news', 'screenshot'] } },
 			},
 		],
 		properties: [
@@ -122,6 +123,18 @@ export class AgentSearch implements INodeType {
 						description: 'Load a JavaScript-heavy page in a headless browser and read it ($0.010 per call, wallet credential)',
 					},
 					{
+						name: 'News Search',
+						value: 'news',
+						action: 'Search recent news',
+						description: 'Recent news articles with date, source and snippet ($0.008 per call, not charged when no results; wallet credential; direct x402 only)',
+					},
+					{
+						name: 'Screenshot',
+						value: 'screenshot',
+						action: 'Take a screenshot of a page',
+						description: 'Capture a page in a real headless browser as a PNG or JPEG binary ($0.010 per call, failed captures not charged; wallet credential; direct x402 only)',
+					},
+					{
 						name: 'Search and Read',
 						value: 'searchAndRead',
 						action: 'Search and read top pages',
@@ -137,7 +150,7 @@ export class AgentSearch implements INodeType {
 				default: '',
 				required: true,
 				placeholder: 'latest n8n release',
-				displayOptions: { show: { operation: ['freeSearch', 'searchAndRead'] } },
+				displayOptions: { show: { operation: ['freeSearch', 'searchAndRead', 'news'] } },
 			},
 			{
 				displayName: 'Max Results',
@@ -146,6 +159,15 @@ export class AgentSearch implements INodeType {
 				typeOptions: { minValue: 1, maxValue: 5 },
 				default: 5,
 				displayOptions: { show: { operation: ['freeSearch'] } },
+			},
+			{
+				displayName: 'Max Results',
+				name: 'newsMaxResults',
+				type: 'number',
+				typeOptions: { minValue: 1, maxValue: 10 },
+				default: 5,
+				description: 'How many news articles to return (default 5, max 10)',
+				displayOptions: { show: { operation: ['news'] } },
 			},
 			{
 				displayName: 'Number of Results to Read',
@@ -172,7 +194,7 @@ export class AgentSearch implements INodeType {
 				required: true,
 				placeholder: 'https://example.com/article',
 				description: 'Absolute public http(s) URL of the page to read',
-				displayOptions: { show: { operation: ['extract', 'render'] } },
+				displayOptions: { show: { operation: ['extract', 'render', 'screenshot'] } },
 			},
 			{
 				displayName: 'Formats',
@@ -225,6 +247,61 @@ export class AgentSearch implements INodeType {
 				default: false,
 				description: 'Whether to render at most one thin page in the same $0.009 call if extract returns little text',
 				displayOptions: { show: { operation: ['searchAndRead'] } },
+			},
+			{
+				displayName: 'Filters',
+				name: 'filters',
+				type: 'collection',
+				placeholder: 'Add Filter',
+				default: {},
+				description: 'Optional search filters (direct x402 API)',
+				displayOptions: { show: { operation: ['news', 'searchAndRead'] } },
+				options: [
+					{ displayName: 'Country', name: 'country', type: 'string', default: '', placeholder: 'us', description: '2-letter ISO 3166-1 country code, e.g. us, gb, de' },
+					{ displayName: 'Date From', name: 'date_from', type: 'string', default: '', placeholder: '2026-11-01', description: 'Only results on or after this date (YYYY-MM-DD). Do not combine with Freshness.' },
+					{ displayName: 'Date To', name: 'date_to', type: 'string', default: '', placeholder: '2026-11-12', description: 'Only results on or before this date (YYYY-MM-DD)' },
+					{ displayName: 'Exclude Domains', name: 'exclude_domains', type: 'string', default: '', placeholder: 'pinterest.com, quora.com', description: 'Comma-separated domains to never return (up to 5)' },
+					{
+						displayName: 'Freshness',
+						name: 'freshness',
+						type: 'options',
+						options: [
+							{ name: 'Past Day', value: 'day' },
+							{ name: 'Past Week', value: 'week' },
+							{ name: 'Past Month', value: 'month' },
+							{ name: 'Past Year', value: 'year' },
+						],
+						default: 'week',
+						description: 'Only results from this recent period',
+					},
+					{ displayName: 'Include Domains', name: 'include_domains', type: 'string', default: '', placeholder: 'reuters.com, apnews.com', description: 'Comma-separated domains to search only (up to 5, subdomains included)' },
+					{ displayName: 'Language', name: 'language', type: 'string', default: '', placeholder: 'en', description: 'ISO 639-1 language, e.g. en, es or pt-BR' },
+				],
+			},
+			{
+				displayName: 'Image Format',
+				name: 'screenshotFormat',
+				type: 'options',
+				options: [
+					{ name: 'PNG', value: 'png' },
+					{ name: 'JPEG', value: 'jpeg' },
+				],
+				default: 'png',
+				displayOptions: { show: { operation: ['screenshot'] } },
+			},
+			{
+				displayName: 'Options',
+				name: 'screenshotOptions',
+				type: 'collection',
+				placeholder: 'Add Option',
+				default: {},
+				displayOptions: { show: { operation: ['screenshot'] } },
+				options: [
+					{ displayName: 'Binary Property', name: 'binaryProperty', type: 'string', default: 'data', description: 'Name of the binary property to write the image to' },
+					{ displayName: 'Full Page', name: 'fullPage', type: 'boolean', default: false, description: 'Whether to capture the whole page (clipped at 4000 px tall) instead of the viewport' },
+					{ displayName: 'Viewport Height', name: 'height', type: 'number', typeOptions: { minValue: 240, maxValue: 1600 }, default: 800, description: 'Viewport height in CSS pixels (240-1600)' },
+					{ displayName: 'Viewport Width', name: 'width', type: 'number', typeOptions: { minValue: 320, maxValue: 1920 }, default: 1280, description: 'Viewport width in CSS pixels (320-1920; e.g. 390 for mobile)' },
+				],
 			},
 			{
 				displayName: 'Options',
@@ -329,10 +406,10 @@ export class AgentSearch implements INodeType {
 					out.push({ json: r.json, pairedItem: { item: i } });
 					continue;
 				}
-				if (operation === 'searchAndRead') {
-					const r = await searchAndRead.call(this, i, signedAtomic);
+				if (operation === 'searchAndRead' || operation === 'news' || operation === 'screenshot') {
+					const r = await directPaid.call(this, operation, i, signedAtomic);
 					signedAtomic = r.signedAtomic;
-					out.push({ json: r.json, pairedItem: { item: i } });
+					out.push({ json: r.json, ...(r.binary ? { binary: r.binary } : {}), pairedItem: { item: i } });
 					continue;
 				}
 				const query = (this.getNodeParameter('query', i) as string).trim();
@@ -546,20 +623,67 @@ async function readPage(
 	return { json: { ...data, payment, portal: direct ? null : envelope.portal ?? null }, signedAtomic };
 }
 
-async function searchAndRead(
+type DirectOp = 'searchAndRead' | 'news' | 'screenshot';
+export const DIRECT_OPS: Record<DirectOp, { path: string; label: string; price: string; when: string }> = {
+	searchAndRead: { path: 'search_and_read', label: 'Search and Read', price: '$0.009', when: 'charged only when at least one page returns text' },
+	news: { path: 'news', label: 'News Search', price: '$0.008', when: 'not charged when there are no results' },
+	screenshot: { path: 'screenshot', label: 'Screenshot', price: '$0.010', when: 'failed captures are not charged' },
+};
+
+const domainList = (v: unknown): string[] =>
+	String(v ?? '')
+		.split(',')
+		.map((d) => d.trim())
+		.filter(Boolean)
+		.slice(0, 5);
+
+export function filtersBody(raw: IDataObject | undefined): IDataObject {
+	const f = raw ?? {};
+	const out: IDataObject = {};
+	for (const k of ['freshness', 'date_from', 'date_to', 'country', 'language']) {
+		const v = String(f[k] ?? '').trim();
+		if (v) out[k] = k === 'country' ? v.toLowerCase() : v;
+	}
+	for (const k of ['include_domains', 'exclude_domains']) {
+		const v = domainList(f[k]);
+		if (v.length) out[k] = v;
+	}
+	return out;
+}
+
+async function directPaid(
 	this: IExecuteFunctions,
+	op: DirectOp,
 	i: number,
 	signedBefore: bigint,
-): Promise<{ json: IDataObject; signedAtomic: bigint }> {
-	const query = String(this.getNodeParameter('query', i) ?? '').trim();
-	if (!query) throw new NodeOperationError(this.getNode(), 'Query is empty', { itemIndex: i });
-	const numResults = this.getNodeParameter('numResults', i, 3) as number;
-	const maxChars = this.getNodeParameter('searchAndReadMaxChars', i, 8000) as number;
-	const renderFallback = this.getNodeParameter('renderFallback', i, false) as boolean;
-	const body: IDataObject = { query };
-	if (numResults) body.num_results = numResults;
-	if (maxChars) body.max_chars = maxChars;
-	if (renderFallback) body.render_fallback = true;
+): Promise<{ json: IDataObject; binary?: IBinaryKeyData; signedAtomic: bigint }> {
+	const meta = DIRECT_OPS[op];
+	let body: IDataObject;
+	if (op === 'screenshot') {
+		const url = String(this.getNodeParameter('url', i) ?? '').trim();
+		if (!/^https?:\/\//i.test(url)) throw new NodeOperationError(this.getNode(), 'URL must be an absolute http(s) URL', { itemIndex: i });
+		const format = this.getNodeParameter('screenshotFormat', i, 'png') as string;
+		const o = (this.getNodeParameter('screenshotOptions', i, {}) ?? {}) as IDataObject;
+		body = { url, format };
+		if (o.fullPage === true) body.full_page = true;
+		if (o.width || o.height) body.viewport = { ...(o.width ? { width: Number(o.width) } : {}), ...(o.height ? { height: Number(o.height) } : {}) };
+	} else {
+		const query = String(this.getNodeParameter('query', i) ?? '').trim();
+		if (!query) throw new NodeOperationError(this.getNode(), 'Query is empty', { itemIndex: i });
+		body = { query };
+		if (op === 'news') {
+			const n = this.getNodeParameter('newsMaxResults', i, 5) as number;
+			if (n) body.max_results = n;
+		} else {
+			const numResults = this.getNodeParameter('numResults', i, 3) as number;
+			const maxChars = this.getNodeParameter('searchAndReadMaxChars', i, 8000) as number;
+			const renderFallback = this.getNodeParameter('renderFallback', i, false) as boolean;
+			if (numResults) body.num_results = numResults;
+			if (maxChars) body.max_chars = maxChars;
+			if (renderFallback) body.render_fallback = true;
+		}
+		Object.assign(body, filtersBody(this.getNodeParameter('filters', i, {}) as IDataObject));
+	}
 
 	let creds: ICredentialDataDecryptedObject | undefined;
 	try {
@@ -570,14 +694,14 @@ async function searchAndRead(
 	if (!creds?.privateKey) {
 		throw new NodeOperationError(
 			this.getNode(),
-			'Search and Read is a paid operation ($0.009 per call in USDC on Base via x402, charged only when at least one page returns text) and no wallet credential is set, so nothing was paid. It is not on the free relay. ' + WALLET_SETUP,
+			`${meta.label} is a paid operation (${meta.price} per call in USDC on Base via x402, ${meta.when}) and no wallet credential is set, so nothing was paid. It is not on the free relay. ` + WALLET_SETUP,
 			{ itemIndex: i },
 		);
 	}
 	if (creds.paymentRoute === 'pocket') {
 		throw new NodeOperationError(
 			this.getNode(),
-			'Search and Read is available only on AgentSearch\'s own x402 API ($0.009 per call when at least one page returns text). Set Payment Route to Direct (the default) on the AgentSearch Wallet API credential. Pocket does not offer this operation. Nothing was signed.',
+			`${meta.label} is available only on AgentSearch's own x402 API (${meta.price} per call, ${meta.when}). Set Payment Route to Direct (the default) on the AgentSearch Wallet API credential. Pocket does not offer this operation. Nothing was signed.`,
 			{ itemIndex: i },
 		);
 	}
@@ -602,8 +726,8 @@ async function searchAndRead(
 		);
 	}
 
-	const url = `${DIRECT_URL}/x402/v1/search_and_read`;
-	const expectRes = '/x402/v1/search_and_read';
+	const url = `${DIRECT_URL}/x402/v1/${meta.path}`;
+	const expectRes = `/x402/v1/${meta.path}`;
 	const unpaid = await post.call(this, url, body);
 	if (unpaid.statusCode !== 402) {
 		throw new NodeOperationError(
@@ -635,7 +759,7 @@ async function searchAndRead(
 		if (ceiling < 15000n) {
 			throw new NodeOperationError(
 				this.getNode(),
-				`${msg} Search and Read costs $0.009; raise "Max Spend per Run" or the per-call ceiling to at least 20000 atomic units ($0.020). Nothing was signed.`,
+				`${msg} ${meta.label} costs ${meta.price}; raise "Max Spend per Run" or the per-call ceiling to at least 20000 atomic units ($0.020). Nothing was signed.`,
 				{ itemIndex: i },
 			);
 		}
@@ -681,13 +805,32 @@ async function searchAndRead(
 		network: BASE_NETWORK,
 		pay_to: payee,
 		payer: from,
-		service_id: 'search_and_read',
+		service_id: meta.path,
 		route: 'agentsearch-x402-direct',
 		settled: receipt?.success ?? false,
 		transaction: tx,
 		...(tx ? { explorer: `https://basescan.org/tx/${tx}` } : {}),
 		run_spent_usd: atomicToUsd(signedAtomic),
 	};
+	if (op === 'screenshot') {
+		const shot = (data.screenshot && typeof data.screenshot === 'object' ? data.screenshot : data) as IDataObject;
+		const b64 = typeof shot.base64 === 'string' ? shot.base64 : '';
+		const { base64: _omit, ...shotMeta } = shot;
+		const json: IDataObject = { ...data, ...(data.screenshot ? { screenshot: shotMeta } : shotMeta), payment, portal: null };
+		if (!data.screenshot) delete json.base64;
+		if (!b64) return { json, signedAtomic };
+		const o = (this.getNodeParameter('screenshotOptions', i, {}) ?? {}) as IDataObject;
+		const prop = String(o.binaryProperty || 'data');
+		const rawFormat = String(shot.format || body.format || 'png').toLowerCase();
+		const format = rawFormat === 'jpg' || rawFormat === 'jpeg' ? 'jpeg' : 'png';
+		const mimeType = `image/${format}`;
+		const fileName = `screenshot.${format === 'jpeg' ? 'jpg' : format}`;
+		const buf = Buffer.from(b64, 'base64');
+		const bin = this.helpers.prepareBinaryData
+			? await this.helpers.prepareBinaryData(buf, fileName, mimeType)
+			: { data: b64, mimeType, fileName, fileExtension: format === 'jpeg' ? 'jpg' : format };
+		return { json, binary: { [prop]: bin as IBinaryKeyData[string] }, signedAtomic };
+	}
 	return { json: { ...data, payment, portal: null }, signedAtomic };
 }
 

@@ -86,11 +86,11 @@ test("direct searchAndRead: 402 -> signs 9000 to AgentSearch payee -> result + r
   const http = async (r) => {
     calls.push(r);
     if (calls.length === 1) return { statusCode: 402, headers: { "payment-required": b64(terms("search_and_read")) }, body: {} };
-    return { statusCode: 200, headers: { "payment-response": b64({ success: true, transaction: "0x" + "ab".repeat(32) }) }, body: { query: "q", results: [{ url: "https://example.com/", markdown: "# Hi" }] } };
+    return { statusCode: 200, headers: { "payment-response": b64({ success: true, transaction: "0x" + "ab".repeat(32) }) }, body: { query: "qq", results: [{ url: "https://example.com/", markdown: "# Hi" }] } };
   };
-  const [items] = await node.execute.call(ctx({ operation: "searchAndRead", query: "q", numResults: 3, searchAndReadMaxChars: 8000 }, http, { privateKey: v.key, maxSpendPerRunUsd: 1 }));
+  const [items] = await node.execute.call(ctx({ operation: "searchAndRead", query: "qq", numResults: 3, searchAndReadMaxChars: 8000 }, http, { privateKey: v.key, maxSpendPerRunUsd: 1 }));
   assert.equal(calls[0].url, "https://api.agentsearchhq.com/x402/v1/search_and_read");
-  assert.deepEqual(calls[0].body, { query: "q", num_results: 3, max_chars: 8000 });
+  assert.deepEqual(calls[0].body, { query: "qq", num_results: 3, max_chars: 8000 });
   const sent = JSON.parse(Buffer.from(calls[1].headers["PAYMENT-SIGNATURE"], "base64").toString());
   assert.equal(sent.payload.authorization.to, DIRECT_PAYEE);
   assert.equal(sent.payload.authorization.value, "9000");
@@ -102,14 +102,14 @@ test("direct searchAndRead: 402 -> signs 9000 to AgentSearch payee -> result + r
 
 test("searchAndRead on the Pocket route refuses without signing", async () => {
   let n = 0;
-  await assert.rejects(node.execute.call(ctx({ operation: "searchAndRead", query: "q" },
+  await assert.rejects(node.execute.call(ctx({ operation: "searchAndRead", query: "qq" },
     async () => { n++; return { statusCode: 500, headers: {}, body: {} }; }, { privateKey: vectors[0].key, paymentRoute: "pocket" })), /own x402 API/);
   assert.equal(n, 0);
 });
 
 test("searchAndRead with no wallet refuses and never hits the free relay", async () => {
   let n = 0;
-  const c = ctx({ operation: "searchAndRead", query: "q" }, async () => { n++; return { statusCode: 200, headers: {}, body: {} }; });
+  const c = ctx({ operation: "searchAndRead", query: "qq" }, async () => { n++; return { statusCode: 200, headers: {}, body: {} }; });
   c.getCredentials = async () => { throw new Error("Node does not have any credentials set"); };
   await assert.rejects(node.execute.call(c), /no wallet credential is set/i);
   assert.equal(n, 0);
@@ -140,7 +140,7 @@ test("0.7.0 news: pays $0.008 direct with max_results and filters", async () => 
 
 test("0.7.0 searchAndRead forwards filters", async () => {
   const calls = [];
-  await node.execute.call(ctx({ operation: "searchAndRead", query: "q", filters: { language: "es", date_from: "2026-11-01" } },
+  await node.execute.call(ctx({ operation: "searchAndRead", query: "qq", filters: { language: "es", date_from: "2026-11-01" } },
     paidHttp("search_and_read", { results: [] }, calls), wallet()));
   assert.equal(calls[0].body.language, "es");
   assert.equal(calls[0].body.date_from, "2026-11-01");
@@ -163,12 +163,12 @@ test("0.7.0 screenshot: pays $0.010, returns binary image and no base64 in json"
 for (const op of ["news", "screenshot"]) {
   test(`0.7.0 ${op}: no credential -> nothing signed, clear message`, async () => {
     const calls = [];
-    await assert.rejects(node.execute.call(ctx({ operation: op, query: "q", url: "https://example.com" }, async (r) => { calls.push(r); }, undefined)), /paid operation/);
+    await assert.rejects(node.execute.call(ctx({ operation: op, query: "qq", url: "https://example.com" }, async (r) => { calls.push(r); }, undefined)), /paid operation/);
     assert.equal(calls.length, 0);
   });
   test(`0.7.0 ${op}: Pocket route refused before any request`, async () => {
     const calls = [];
-    await assert.rejects(node.execute.call(ctx({ operation: op, query: "q", url: "https://example.com" }, async (r) => { calls.push(r); }, { ...wallet(), paymentRoute: "pocket" })), /only on AgentSearch's own x402 API/);
+    await assert.rejects(node.execute.call(ctx({ operation: op, query: "qq", url: "https://example.com" }, async (r) => { calls.push(r); }, { ...wallet(), paymentRoute: "pocket" })), /only on AgentSearch's own x402 API/);
     assert.equal(calls.length, 0);
   });
 }

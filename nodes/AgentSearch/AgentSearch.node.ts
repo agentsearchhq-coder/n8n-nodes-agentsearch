@@ -40,6 +40,9 @@ const GUIDE = 'https://agentsearchhq.com/blog/n8n-ai-agent-read-web-pages?utm_so
 export const LIMIT_MESSAGE =
 	`Free AgentSearch limit reached (25 searches per day per IP; resets daily). For unlimited search plus extract (static pages) and render (JavaScript-heavy pages, or when extract returns thin content), use the paid API (AgentSearch's own x402 API on Base: Extract $0.004, Render $0.010 per call in USDC; Pocket route $0.005 optional). Docs: ${DOCS}`;
 
+export const MIN_QUERY_CHARS = 2;
+export const QUERY_TOO_SHORT_MESSAGE = 'Query must be at least 2 characters. Nothing was sent or charged.';
+
 type PageOperation = 'extract' | 'render';
 export const PORTAL_SERVICES: Record<PageOperation, { serviceId: string; path: string }> = {
 	extract: { serviceId: 'agentsearch-web-extract-v1', path: '/v1/extract' },
@@ -414,6 +417,7 @@ export class AgentSearch implements INodeType {
 				}
 				const query = (this.getNodeParameter('query', i) as string).trim();
 				if (!query) throw new NodeOperationError(this.getNode(), 'Query is empty', { itemIndex: i });
+				if (query.length < MIN_QUERY_CHARS) throw new NodeOperationError(this.getNode(), QUERY_TOO_SHORT_MESSAGE, { itemIndex: i });
 				const maxResults = this.getNodeParameter('maxResults', i, 5) as number;
 				const split = this.getNodeParameter('split', i, false) as boolean;
 				let res: IDataObject;
@@ -430,6 +434,14 @@ export class AgentSearch implements INodeType {
 					const err = e as { httpCode?: unknown; statusCode?: unknown; response?: { status?: unknown } };
 					const status = err?.httpCode ?? err?.response?.status ?? err?.statusCode;
 					if (String(status) === '429') throw new NodeOperationError(this.getNode(), LIMIT_MESSAGE, { itemIndex: i });
+					const code = Number(status);
+					if (code >= 400 && code < 500 && code !== 408) {
+						throw new NodeOperationError(
+							this.getNode(),
+							`AgentSearch rejected the request (HTTP ${code}). Fix the input before retrying; retrying the same request will fail again.`,
+							{ itemIndex: i },
+						);
+					}
 					throw new NodeApiError(this.getNode(), e as JsonObject, { itemIndex: i });
 				}
 				if (res && typeof res === 'object') delete res.provider;
@@ -670,6 +682,7 @@ async function directPaid(
 	} else {
 		const query = String(this.getNodeParameter('query', i) ?? '').trim();
 		if (!query) throw new NodeOperationError(this.getNode(), 'Query is empty', { itemIndex: i });
+		if (query.length < MIN_QUERY_CHARS) throw new NodeOperationError(this.getNode(), QUERY_TOO_SHORT_MESSAGE, { itemIndex: i });
 		body = { query };
 		if (op === 'news') {
 			const n = this.getNodeParameter('newsMaxResults', i, 5) as number;

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1 (2026-11-14)
+- Search, News Search and Search and Read now reject queries shorter than 2 characters before any request is sent or any payment is signed ("Query must be at least 2 characters. Nothing was sent or charged.").
+- A 4xx from the free relay (other than 408/429) now surfaces as a clear "fix the input before retrying" error instead of a generic API error, so n8n Retry On Fail and AI-agent loops stop hammering a request that can't succeed.
+
 ## 0.7.0
 
 - New **News Search** operation: `POST /x402/v1/news` on the direct x402 API, $0.008 per call (not charged when there are no results), 1-10 articles.

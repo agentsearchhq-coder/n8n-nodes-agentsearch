@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 const require = createRequire(import.meta.url);
-const { AgentSearch, LIMIT_MESSAGE, paidOnlyMessage } = require("../dist/nodes/AgentSearch/AgentSearch.node.js");
+const { AgentSearch, LIMIT_MESSAGE, QUERY_TOO_SHORT_MESSAGE, paidOnlyMessage } = require("../dist/nodes/AgentSearch/AgentSearch.node.js");
 const { AgentSearchWalletApi } = require("../dist/credentials/AgentSearchWalletApi.credentials.js");
 const { required, vectors } = JSON.parse(readFileSync(new URL("./x402-vectors.json", import.meta.url)));
 
@@ -42,21 +42,21 @@ test("backward compatible: credential is optional and only shown for paid operat
 
 test("free search (mocked) + split, no credentials touched", async () => {
   let req;
-  const c = ctx({ query: "q", maxResults: 2, split: true }, async (r) => { req = r; return { provider: "p", results: [{ url: "a" }, { url: "b" }] }; });
+  const c = ctx({ query: "qq", maxResults: 2, split: true }, async (r) => { req = r; return { provider: "p", results: [{ url: "a" }, { url: "b" }] }; });
   c.getCredentials = async () => { throw new Error("must not be called"); };
   const [items] = await node.execute.call(c);
   assert.equal(req.url, "https://relay.agentsearchhq.com/v1/search");
-  assert.deepEqual(req.body, { query: "q", max_results: 2 });
+  assert.deepEqual(req.body, { query: "qq", max_results: 2 });
   assert.equal(items.length, 2);
 });
 
 test("free search on a 0.2.x workflow (no operation param stored)", async () => {
-  const [items] = await node.execute.call(ctx({ query: "q" }, async () => ({ results: [] })));
+  const [items] = await node.execute.call(ctx({ query: "qq" }, async () => ({ results: [] })));
   assert.equal(items.length, 1);
 });
 
 test("429 -> limit message", async () => {
-  await assert.rejects(node.execute.call(ctx({ query: "q" }, async () => { throw Object.assign(new Error("x"), { httpCode: "429" }); })), (e) => e.message === LIMIT_MESSAGE);
+  await assert.rejects(node.execute.call(ctx({ query: "qq" }, async () => { throw Object.assign(new Error("x"), { httpCode: "429" }); })), (e) => e.message === LIMIT_MESSAGE);
 });
 
 test("extract without wallet: relay has no free extract (404) -> setup message, nothing paid", async () => {
@@ -176,3 +176,14 @@ test("LIVE: extract without wallet reaches relay and explains setup", { skip: !p
     assert.match(e.message, /wallet|allowance/i);
   }
 });
+
+test("0.7.1: 1-char query is rejected client-side, nothing sent", async () => {
+  let n = 0;
+  await assert.rejects(node.execute.call(ctx({ query: "a" }, async () => { n++; return { results: [] }; })), (e) => e.message === QUERY_TOO_SHORT_MESSAGE);
+  assert.equal(n, 0);
+});
+
+test("0.7.1: relay 400 -> fix-input message, not a generic API error", async () => {
+  await assert.rejects(node.execute.call(ctx({ query: "qq" }, async () => { throw Object.assign(new Error("x"), { httpCode: "400" }); })), /Fix the input before retrying/);
+});
+

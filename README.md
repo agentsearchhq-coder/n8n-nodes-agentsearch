@@ -46,7 +46,7 @@ The node only signs a payment in USDC on Base to AgentSearch's payee `0xC49B1578
 
 **New in 0.7.0: News Search and Screenshot, plus search filters.**
 
-- **News Search** ($0.005 per call, not charged when there are no results): recent news articles with headline, URL, snippet, source and publish date, 1-10 per call.
+- **News Search** ($0.003 per call, not charged when there are no results): recent news articles with headline, URL, snippet, source and publish date, 1-10 per call.
 - **Screenshot** ($0.004 per call, failed captures not charged): capture a page in a real headless browser as PNG or JPEG. The image is written to a binary property (default `data`) so you can pass it to an AI vision node, Slack, email or storage; the JSON keeps the metadata (final URL, title, size) without the base64.
 - **Filters** on News Search and Search and Read: Freshness (past day/week/month/year) or a Date From/To range, Country, Language, and Include/Exclude Domains (comma-separated, up to 5).
 

@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.3 (2026-11-16)
+- Docs only: README: News Search $0.003 per call (was still $0.005). Live direct prices: search and news $0.003, extract $0.002, render $0.005, screenshot $0.004, search_and_read $0.005; Pocket route unchanged at $0.005. No code or behavior change.
+
 ## 0.7.2 (2026-11-15)
 - Direct x402 list prices now match the live API (approved 2026-11-15): search and news $0.003, extract $0.002, render $0.005, screenshot $0.004, search_and_read $0.005. Runtime price constants, tool text, docs and tests updated. Pocket route remains $0.005. The per-call ceiling stays $0.020.
 

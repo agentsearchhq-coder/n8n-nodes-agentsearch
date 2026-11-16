@@ -38,7 +38,7 @@ export const CLIENT_TAG = 'n8n-nodes-agentsearch/0.7.0';
 const DOCS = 'https://agentsearchhq.com/?utm_source=n8n-nodes-agentsearch&utm_medium=package';
 const GUIDE = 'https://agentsearchhq.com/blog/n8n-ai-agent-read-web-pages?utm_source=n8n-nodes-agentsearch&utm_medium=package';
 export const LIMIT_MESSAGE =
-	`Free AgentSearch limit reached (25 searches per day per IP; resets daily). For unlimited search plus extract (static pages) and render (JavaScript-heavy pages, or when extract returns thin content), use the paid API (AgentSearch's own x402 API on Base: Extract $0.004, Render $0.010 per call in USDC; Pocket route $0.005 optional). Docs: ${DOCS}`;
+	`Free AgentSearch limit reached (25 searches per day per IP; resets daily). For unlimited search plus extract (static pages) and render (JavaScript-heavy pages, or when extract returns thin content), use the paid API (AgentSearch's own x402 API on Base: Extract $0.002, Render $0.005 per call in USDC; Pocket route $0.005 optional). Docs: ${DOCS}`;
 
 export const MIN_QUERY_CHARS = 2;
 export const QUERY_TOO_SHORT_MESSAGE = 'Query must be at least 2 characters. Nothing was sent or charged.';
@@ -50,14 +50,14 @@ export const PORTAL_SERVICES: Record<PageOperation, { serviceId: string; path: s
 };
 
 export const WALLET_SETUP =
-	'Add an "AgentSearch Wallet API" credential to this node: the private key of a NEW wallet made only for this, funded with a little USDC on Base (for example $1 = about 100-250 calls; no ETH needed). Each call is paid over x402 to AgentSearch\'s own API on Base (Extract $0.004, Render $0.010; failed calls are not charged), or $0.005 through the Pocket Network Agentic Portal if you pick that Payment Route. Free Search stays free and needs no credential. Guide: ' +
+	'Add an "AgentSearch Wallet API" credential to this node: the private key of a NEW wallet made only for this, funded with a little USDC on Base (for example $1 = about 100-250 calls; no ETH needed). Each call is paid over x402 to AgentSearch\'s own API on Base (Extract $0.002, Render $0.005; failed calls are not charged), or $0.005 through the Pocket Network Agentic Portal if you pick that Payment Route. Free Search stays free and needs no credential. Guide: ' +
 	GUIDE;
 
 export function paidOnlyMessage(op: PageOperation): string {
-	return `${op === 'extract' ? 'Extract' : 'Render'} is a paid operation (${op === 'extract' ? '$0.004' : '$0.010'} per call in USDC on Base via x402) and no wallet credential is set, so nothing was paid. ${WALLET_SETUP}`;
+	return `${op === 'extract' ? 'Extract' : 'Render'} is a paid operation (${op === 'extract' ? '$0.002' : '$0.005'} per call in USDC on Base via x402) and no wallet credential is set, so nothing was paid. ${WALLET_SETUP}`;
 }
 export function trialLimitMessage(op: PageOperation): string {
-	return `Free ${op} allowance for today is used up. Continue at ${op === 'extract' ? '$0.004' : '$0.010'} per call (x402, USDC on Base): ${WALLET_SETUP}`;
+	return `Free ${op} allowance for today is used up. Continue at ${op === 'extract' ? '$0.002' : '$0.005'} per call (x402, USDC on Base): ${WALLET_SETUP}`;
 }
 
 const headerOf = (headers: unknown, name: string): string | undefined => {
@@ -92,7 +92,7 @@ export class AgentSearch implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"]}}',
-		description: 'Free live web search for AI agents, plus News Search ($0.008), page Extract ($0.004), JavaScript Render ($0.010), Screenshot ($0.010), and Search + Read ($0.009) per call via x402',
+		description: 'Free live web search for AI agents, plus News Search ($0.003), page Extract ($0.002), JavaScript Render ($0.005), Screenshot ($0.004), and Search + Read ($0.005) per call via x402',
 		defaults: { name: 'AgentSearch' },
 		inputs: [NodeConnectionTypes.Main],
 		outputs: [NodeConnectionTypes.Main],
@@ -117,31 +117,31 @@ export class AgentSearch implements INodeType {
 						name: 'Extract Page',
 						value: 'extract',
 						action: 'Extract a page as markdown',
-						description: 'Read a page as clean markdown or text ($0.004 per call, wallet credential)',
+						description: 'Read a page as clean markdown or text ($0.002 per call, wallet credential)',
 					},
 					{
 						name: 'Render Page',
 						value: 'render',
 						action: 'Render a dynamic page',
-						description: 'Load a JavaScript-heavy page in a headless browser and read it ($0.010 per call, wallet credential)',
+						description: 'Load a JavaScript-heavy page in a headless browser and read it ($0.005 per call, wallet credential)',
 					},
 					{
 						name: 'News Search',
 						value: 'news',
 						action: 'Search recent news',
-						description: 'Recent news articles with date, source and snippet ($0.008 per call, not charged when no results; wallet credential; direct x402 only)',
+						description: 'Recent news articles with date, source and snippet ($0.003 per call, not charged when no results; wallet credential; direct x402 only)',
 					},
 					{
 						name: 'Screenshot',
 						value: 'screenshot',
 						action: 'Take a screenshot of a page',
-						description: 'Capture a page in a real headless browser as a PNG or JPEG binary ($0.010 per call, failed captures not charged; wallet credential; direct x402 only)',
+						description: 'Capture a page in a real headless browser as a PNG or JPEG binary ($0.004 per call, failed captures not charged; wallet credential; direct x402 only)',
 					},
 					{
 						name: 'Search and Read',
 						value: 'searchAndRead',
 						action: 'Search and read top pages',
-						description: 'Search the live web and return the top pages\' text in one paid call ($0.009, charged only when at least one page returns text; wallet credential; direct x402 only)',
+						description: 'Search the live web and return the top pages\' text in one paid call ($0.005, charged only when at least one page returns text; wallet credential; direct x402 only)',
 					},
 				],
 				default: 'freeSearch',
@@ -248,7 +248,7 @@ export class AgentSearch implements INodeType {
 				name: 'renderFallback',
 				type: 'boolean',
 				default: false,
-				description: 'Whether to render at most one thin page in the same $0.009 call if extract returns little text',
+				description: 'Whether to render at most one thin page in the same $0.005 call if extract returns little text',
 				displayOptions: { show: { operation: ['searchAndRead'] } },
 			},
 			{
@@ -390,7 +390,7 @@ export class AgentSearch implements INodeType {
 				if (!Number.isFinite(cap) || cap <= 0) return { status: 'Error', message: 'Max Spend per Run must be a positive number of USD.' };
 				return {
 					status: 'OK',
-					message: `Valid key for wallet ${address}. Fund it with USDC on Base (no ETH needed); each Extract ($0.004) or Render ($0.010) call pays AgentSearch's x402 API ($0.005 on the Pocket route).`,
+					message: `Valid key for wallet ${address}. Fund it with USDC on Base (no ETH needed); each Extract ($0.002) or Render ($0.005) call pays AgentSearch's x402 API ($0.005 on the Pocket route).`,
 				};
 			},
 		},
@@ -637,9 +637,9 @@ async function readPage(
 
 type DirectOp = 'searchAndRead' | 'news' | 'screenshot';
 export const DIRECT_OPS: Record<DirectOp, { path: string; label: string; price: string; when: string }> = {
-	searchAndRead: { path: 'search_and_read', label: 'Search and Read', price: '$0.009', when: 'charged only when at least one page returns text' },
-	news: { path: 'news', label: 'News Search', price: '$0.008', when: 'not charged when there are no results' },
-	screenshot: { path: 'screenshot', label: 'Screenshot', price: '$0.010', when: 'failed captures are not charged' },
+	searchAndRead: { path: 'search_and_read', label: 'Search and Read', price: '$0.005', when: 'charged only when at least one page returns text' },
+	news: { path: 'news', label: 'News Search', price: '$0.003', when: 'not charged when there are no results' },
+	screenshot: { path: 'screenshot', label: 'Screenshot', price: '$0.004', when: 'failed captures are not charged' },
 };
 
 const domainList = (v: unknown): string[] =>

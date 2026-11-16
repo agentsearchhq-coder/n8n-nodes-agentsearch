@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.2 (2026-11-15)
+- Direct x402 list prices now match the live API (approved 2026-11-15): search and news $0.003, extract $0.002, render $0.005, screenshot $0.004, search_and_read $0.005. Runtime price constants, tool text, docs and tests updated. Pocket route remains $0.005. The per-call ceiling stays $0.020.
+
 ## 0.7.1 (2026-11-14)
 - Search, News Search and Search and Read now reject queries shorter than 2 characters before any request is sent or any payment is signed ("Query must be at least 2 characters. Nothing was sent or charged.").
 - A 4xx from the free relay (other than 408/429) now surfaces as a clear "fix the input before retrying" error instead of a generic API error, so n8n Retry On Fail and AI-agent loops stop hammering a request that can't succeed.

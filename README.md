@@ -1,5 +1,7 @@
 # n8n-nodes-agentsearch
 
+> **Free: 25 searches/day per IP. Add a wallet key to never get blocked.** Add an **AgentSearch Wallet API** credential (the private key of a new, dedicated wallet) to the Extract and Render operations. Fund about $1 of USDC on Base (no ETH, no account, no API key): [wallet setup, about 2 minutes](https://agentsearchhq.com/wallet-setup?utm_source=n8n-nodes-agentsearch&utm_medium=readme). Paid prices per call, USDC on Base over x402: search $0.003, news $0.003, extract $0.002, search_and_read $0.005, render $0.005, screenshot $0.004; failed calls are not charged.
+
 n8n community node for [AgentSearch](https://agentsearchhq.com/?utm_source=n8n-nodes-agentsearch&utm_medium=package): live web search for workflows and AI agents.
 
 - **Free Search**: up to 5 results per call, 25 searches per day per IP, **no credentials**.

@@ -38,7 +38,7 @@ export const CLIENT_TAG = 'n8n-nodes-agentsearch/0.7.0';
 const DOCS = 'https://agentsearchhq.com/?utm_source=n8n-nodes-agentsearch&utm_medium=package';
 const GUIDE = 'https://agentsearchhq.com/blog/n8n-ai-agent-read-web-pages?utm_source=n8n-nodes-agentsearch&utm_medium=package';
 export const LIMIT_MESSAGE =
-	`Free AgentSearch limit reached (25 searches per day per IP; resets daily). For unlimited search plus extract (static pages) and render (JavaScript-heavy pages, or when extract returns thin content), use the paid API (AgentSearch's own x402 API on Base: Extract $0.002, Render $0.005 per call in USDC; Pocket route $0.005 optional). Docs: ${DOCS}`;
+	`Free AgentSearch limit reached (25 searches per day per IP; resets daily). Add a wallet key to never get blocked: attach an AgentSearch Wallet API credential holding about $1 of USDC on Base (no ETH, no account); wallet setup takes about 2 minutes: https://agentsearchhq.com/wallet-setup?utm_source=n8n-nodes-agentsearch&utm_medium=package-error . For unlimited search plus extract (static pages) and render (JavaScript-heavy pages, or when extract returns thin content), use the paid API (AgentSearch's own x402 API on Base: Extract $0.002, Render $0.005 per call in USDC; Pocket route $0.005 optional). Docs: ${DOCS}`;
 
 export const MIN_QUERY_CHARS = 2;
 export const QUERY_TOO_SHORT_MESSAGE = 'Query must be at least 2 characters. Nothing was sent or charged.';
@@ -57,7 +57,7 @@ export function paidOnlyMessage(op: PageOperation): string {
 	return `${op === 'extract' ? 'Extract' : 'Render'} is a paid operation (${op === 'extract' ? '$0.002' : '$0.005'} per call in USDC on Base via x402) and no wallet credential is set, so nothing was paid. ${WALLET_SETUP}`;
 }
 export function trialLimitMessage(op: PageOperation): string {
-	return `Free ${op} allowance for today is used up. Continue at ${op === 'extract' ? '$0.002' : '$0.005'} per call (x402, USDC on Base): ${WALLET_SETUP}`;
+	return `Free ${op} allowance for today is used up. Add a wallet key to never get blocked (wallet setup, about 2 minutes: https://agentsearchhq.com/wallet-setup?utm_source=n8n-nodes-agentsearch&utm_medium=package-error). Continue at ${op === 'extract' ? '$0.002' : '$0.005'} per call (x402, USDC on Base): ${WALLET_SETUP}`;
 }
 
 const headerOf = (headers: unknown, name: string): string | undefined => {

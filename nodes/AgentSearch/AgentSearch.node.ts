@@ -38,7 +38,7 @@ export const CLIENT_TAG = 'n8n-nodes-agentsearch/0.7.0';
 const DOCS = 'https://agentsearchhq.com/?utm_source=n8n-nodes-agentsearch&utm_medium=package';
 const GUIDE = 'https://agentsearchhq.com/blog/n8n-ai-agent-read-web-pages?utm_source=n8n-nodes-agentsearch&utm_medium=package';
 export const LIMIT_MESSAGE =
-	`Free AgentSearch limit reached (25 searches per day per IP; resets daily). For unlimited search plus extract (static pages) and render (JavaScript-heavy pages, or when extract returns thin content), use the paid API (AgentSearch's own x402 API on Base: Extract $0.002, Render $0.005 per call in USDC; Pocket route $0.005 optional). Docs: ${DOCS}`;
+	`Free AgentSearch limit reached (25 free searches per IP in total, then pay per call; they do not reset). For unlimited search plus extract (static pages) and render (JavaScript-heavy pages, or when extract returns thin content), use the paid API (AgentSearch's own x402 API on Base: Extract $0.002, Render $0.005 per call in USDC; Pocket route $0.005 optional). Docs: ${DOCS}`;
 
 export const MIN_QUERY_CHARS = 2;
 export const QUERY_TOO_SHORT_MESSAGE = 'Query must be at least 2 characters. Nothing was sent or charged.';
@@ -112,7 +112,7 @@ export class AgentSearch implements INodeType {
 				type: 'options',
 				noDataExpression: true,
 				options: [
-					{ name: 'Free Search', value: 'freeSearch', action: 'Search the web for free', description: 'Up to 5 results, 25 searches per day, no key' },
+					{ name: 'Free Search', value: 'freeSearch', action: 'Search the web for free', description: 'Up to 5 results, 25 free searches per IP in total, no key' },
 					{
 						name: 'Extract Page',
 						value: 'extract',

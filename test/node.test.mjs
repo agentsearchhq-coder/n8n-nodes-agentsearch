@@ -187,3 +187,10 @@ test("0.7.1: relay 400 -> fix-input message, not a generic API error", async () 
   await assert.rejects(node.execute.call(ctx({ query: "qq" }, async () => { throw Object.assign(new Error("x"), { httpCode: "400" }); })), /Fix the input before retrying/);
 });
 
+
+test("free search limit wording: 25 free searches per IP in total, no daily reset", () => {
+  assert.match(LIMIT_MESSAGE, /25 free searches per IP in total, then pay per call/);
+  assert.doesNotMatch(LIMIT_MESSAGE, /per day|resets daily/);
+  const w = readFileSync(new URL("../templates/agentsearch-free-search.workflow.json", import.meta.url), "utf8");
+  assert.doesNotMatch(w, /searches\/day|25 free searches\/day|daily limit/i);
+});

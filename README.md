@@ -2,7 +2,7 @@
 
 n8n community node for [AgentSearch](https://agentsearchhq.com/?utm_source=n8n-nodes-agentsearch&utm_medium=package): live web search for workflows and AI agents.
 
-- **Free Search**: up to 5 results per call, 25 searches per day per IP, **no credentials**.
+- **Free Search**: up to 5 results per call, 25 free searches per IP in total, **no credentials**.
 - **Extract Page** (new in 0.3.0): read a page as clean markdown or text. $0.002 per call (x402, USDC on Base).
 - **Render Page** (new in 0.3.0): load a JavaScript-heavy page in a headless browser, then read it (markdown, text, HTML, links, optional screenshot). $0.005 per call.
 - `usableAsTool`: all three work as tools for the n8n AI Agent node (search, then read the best page).
@@ -28,7 +28,7 @@ Output (default):
 { "query": "...", "result_count": 5, "retrieved_at": "...", "results": [{ "title": "...", "url": "...", "content": "..." }] }
 ```
 
-If the daily free limit is reached (HTTP 429) the node fails with an explanation; enable *Continue On Fail* to keep the workflow running.
+If the free search allowance is used up (25 free searches per IP in total, then pay per call; HTTP 429) the node fails with an explanation; enable *Continue On Fail* to keep the workflow running.
 
 **Hit the 429?** Extract (full page text) and Render (JS pages) are in this node at $0.002 / $0.005 per call: see below.
 

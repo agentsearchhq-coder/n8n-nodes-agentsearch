@@ -52,7 +52,7 @@
         440,
         0
       ],
-      "notes": "Free: 25 searches/day per user, up to 5 results, no key. HTTP 429 = daily limit reached. Docs: https://agentsearchhq.com/agents.md?utm_source=n8n-nodes-agentsearch&utm_medium=package",
+      "notes": "Free: 25 free searches per IP in total, up to 5 results, no key. HTTP 429 = free searches used up (then pay per call). Docs: https://agentsearchhq.com/agents.md?utm_source=n8n-nodes-agentsearch&utm_medium=package",
       "onError": "continueRegularOutput"
     },
     {
@@ -71,7 +71,7 @@
     },
     {
       "parameters": {
-        "content": "## Free web search (no API key)\nSearches the web with AgentSearch and returns up to 5 cited results (title, URL, snippet). 25 free searches/day per user.\n\n### How it works\n1. **Manual Trigger** starts the run (swap for Chat, Schedule or Webhook).\n2. **Set Query** holds the question.\n3. **AgentSearch (free)** calls the free search endpoint, no credentials.\n4. **One Item per Result** splits results into items.\n\n### Setup\nEdit the query in **Set Query**, then run.\n\n### Customize\nConnect results to an AI Agent or LLM node to answer with citations. Self-hosted: install the community node `n8n-nodes-agentsearch`.",
+        "content": "## Free web search (no API key)\nSearches the web with AgentSearch and returns up to 5 cited results (title, URL, snippet). 25 free searches per IP in total.\n\n### How it works\n1. **Manual Trigger** starts the run (swap for Chat, Schedule or Webhook).\n2. **Set Query** holds the question.\n3. **AgentSearch (free)** calls the free search endpoint, no credentials.\n4. **One Item per Result** splits results into items.\n\n### Setup\nEdit the query in **Set Query**, then run.\n\n### Customize\nConnect results to an AI Agent or LLM node to answer with citations. Self-hosted: install the community node `n8n-nodes-agentsearch`.",
         "height": 560,
         "width": 380,
         "color": 4
@@ -87,7 +87,7 @@
     },
     {
       "parameters": {
-        "content": "### Daily limit\nHit the free daily limit? This node returns **429**. *Continue On Fail* is enabled so the workflow keeps running; connect a fallback if needed.",
+        "content": "### Free limit\nUsed up the free searches? This node returns **429**. *Continue On Fail* is enabled so the workflow keeps running; connect a fallback if needed.",
         "height": 200,
         "width": 260,
         "color": 3

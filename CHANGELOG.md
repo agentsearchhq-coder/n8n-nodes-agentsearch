@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.4 (2026-11-20)
+- Free search wording: the free relay now allows **25 free searches per IP in total** (a lifetime allowance since 2026-11-19, not per day), then pay per call via x402 on Base ($0.003 per search at https://api.agentsearchhq.com; wallet setup https://agentsearchhq.com/wallet-setup). The Free Search operation description, the free-limit (HTTP 429) error, the free-search template notes and the README no longer say "25 searches per day", "resets daily" or "daily limit". The Extract/Render free trial is unchanged (5 extract and 3 render calls per day per IP). No behavior change.
+
 ## 0.7.3 (2026-11-16)
 - Docs only: README: News Search $0.003 per call (was still $0.005). Live direct prices: search and news $0.003, extract $0.002, render $0.005, screenshot $0.004, search_and_read $0.005; Pocket route unchanged at $0.005. No code or behavior change.
 

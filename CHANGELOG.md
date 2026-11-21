@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.5 (2026-11-21)
+
+- News, Search and Read, and Screenshot use the free relay when no wallet credential is set (10 free calls per IP in total each). With a wallet credential they still pay on the direct x402 API as before. The client tag is `n8n-nodes-agentsearch/0.7.5`.
+
 ## 0.7.4 (2026-11-20)
 - Free search wording: the free relay now allows **25 free searches per IP in total** (a lifetime allowance since 2026-11-19, not per day), then pay per call via x402 on Base ($0.003 per search at https://api.agentsearchhq.com; wallet setup https://agentsearchhq.com/wallet-setup). The Free Search operation description, the free-limit (HTTP 429) error, the free-search template notes and the README no longer say "25 searches per day", "resets daily" or "daily limit". The Extract/Render free trial is unchanged (5 extract and 3 render calls per day per IP). No behavior change.
 

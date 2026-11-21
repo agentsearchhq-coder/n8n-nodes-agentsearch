@@ -107,12 +107,14 @@ test("searchAndRead on the Pocket route refuses without signing", async () => {
   assert.equal(n, 0);
 });
 
-test("searchAndRead with no wallet refuses and never hits the free relay", async () => {
-  let n = 0;
-  const c = ctx({ operation: "searchAndRead", query: "qq" }, async () => { n++; return { statusCode: 200, headers: {}, body: {} }; });
+test("searchAndRead with no wallet uses the free relay", async () => {
+  const calls = [];
+  const c = ctx({ operation: "searchAndRead", query: "qq" }, async (r) => { calls.push(r); return { query: "qq", results: [] }; });
   c.getCredentials = async () => { throw new Error("Node does not have any credentials set"); };
-  await assert.rejects(node.execute.call(c), /no wallet credential is set/i);
-  assert.equal(n, 0);
+  const [items] = await node.execute.call(c);
+  assert.equal(calls[0].url, "https://relay.agentsearchhq.com/v1/search_and_read");
+  assert.equal(calls[0].headers["X-Agent-Client"], "n8n-nodes-agentsearch/0.7.5");
+  assert.deepEqual(items[0].json.results, []);
 });
 
 // 0.7.0: News Search and Screenshot (direct x402 only), filters on news and Search and Read.
@@ -161,10 +163,12 @@ test("0.7.0 screenshot: pays $0.004, returns binary image and no base64 in json"
 });
 
 for (const op of ["news", "screenshot"]) {
-  test(`0.7.0 ${op}: no credential -> nothing signed, clear message`, async () => {
+  test(`0.7.5 ${op}: no credential uses the free relay`, async () => {
     const calls = [];
-    await assert.rejects(node.execute.call(ctx({ operation: op, query: "qq", url: "https://example.com" }, async (r) => { calls.push(r); }, undefined)), /paid operation/);
-    assert.equal(calls.length, 0);
+    const [items] = await node.execute.call(ctx({ operation: op, query: "qq", url: "https://example.com" }, async (r) => { calls.push(r); return op === "news" ? { query: "qq", results: [] } : { url: "https://example.com/", screenshot: { format: "png", width: 1, height: 1, base64: "YQ==" } }; }, undefined));
+    assert.ok(calls[0].url.endsWith(op === "news" ? "/v1/news" : "/v1/screenshot"), calls[0].url);
+    assert.equal(calls[0].headers["X-Agent-Client"], "n8n-nodes-agentsearch/0.7.5");
+    assert.ok(items[0].json);
   });
   test(`0.7.0 ${op}: Pocket route refused before any request`, async () => {
     const calls = [];

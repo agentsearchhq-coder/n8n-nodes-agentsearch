@@ -34,11 +34,18 @@ import {
 export const FREE_RELAY_URL = 'https://relay.agentsearchhq.com/v1/search';
 export const RELAY_BASE_URL = 'https://relay.agentsearchhq.com';
 export const PORTAL_URL = 'https://agent.pocket.network';
-export const CLIENT_TAG = 'n8n-nodes-agentsearch/0.7.0';
+export const CLIENT_TAG = 'n8n-nodes-agentsearch/0.7.5';
 const DOCS = 'https://agentsearchhq.com/?utm_source=n8n-nodes-agentsearch&utm_medium=package';
 const GUIDE = 'https://agentsearchhq.com/blog/n8n-ai-agent-read-web-pages?utm_source=n8n-nodes-agentsearch&utm_medium=package';
 export const LIMIT_MESSAGE =
 	`Free AgentSearch limit reached (25 free searches per IP in total, then pay per call; they do not reset). For unlimited search plus extract (static pages) and render (JavaScript-heavy pages, or when extract returns thin content), use the paid API (AgentSearch's own x402 API on Base: Extract $0.002, Render $0.005 per call in USDC; Pocket route $0.005 optional). Docs: ${DOCS}`;
+
+
+export const LIFE_LIMIT_MESSAGES: Record<string, string> = {
+	news: `Free AgentSearch news limit reached (10 free news searches per IP in total, then pay per call; they do not reset). Add an AgentSearch Wallet API credential to this node to pay $0.003 per call in USDC on Base via x402. Docs: ${DOCS}`,
+	searchAndRead: `Free AgentSearch search-and-read limit reached (10 free search-and-read calls per IP in total, then pay per call; they do not reset). Add an AgentSearch Wallet API credential to this node to pay $0.005 per call in USDC on Base via x402. Docs: ${DOCS}`,
+	screenshot: `Free AgentSearch screenshot limit reached (10 free screenshots per IP in total, then pay per call; they do not reset). Add an AgentSearch Wallet API credential to this node to pay $0.004 per call in USDC on Base via x402. Docs: ${DOCS}`,
+};
 
 export const MIN_QUERY_CHARS = 2;
 export const QUERY_TOO_SHORT_MESSAGE = 'Query must be at least 2 characters. Nothing was sent or charged.';
@@ -410,9 +417,15 @@ export class AgentSearch implements INodeType {
 					continue;
 				}
 				if (operation === 'searchAndRead' || operation === 'news' || operation === 'screenshot') {
-					const r = await directPaid.call(this, operation, i, signedAtomic);
-					signedAtomic = r.signedAtomic;
-					out.push({ json: r.json, ...(r.binary ? { binary: r.binary } : {}), pairedItem: { item: i } });
+					const hasWallet = await hasWalletCredential.call(this);
+					if (hasWallet) {
+						const r = await directPaid.call(this, operation as 'searchAndRead' | 'news' | 'screenshot', i, signedAtomic);
+						signedAtomic = r.signedAtomic;
+						out.push({ json: r.json, ...(r.binary ? { binary: r.binary } : {}), pairedItem: { item: i } });
+					} else {
+						const r = await freeLifeTool.call(this, operation as 'searchAndRead' | 'news' | 'screenshot', i);
+						out.push({ json: r.json, ...(r.binary ? { binary: r.binary } : {}), pairedItem: { item: i } });
+					}
 					continue;
 				}
 				const query = (this.getNodeParameter('query', i) as string).trim();
@@ -661,6 +674,92 @@ export function filtersBody(raw: IDataObject | undefined): IDataObject {
 		if (v.length) out[k] = v;
 	}
 	return out;
+}
+
+
+async function hasWalletCredential(this: IExecuteFunctions): Promise<boolean> {
+	try {
+		const cred = await this.getCredentials('agentSearchWalletApi');
+		return Boolean(cred && (cred.privateKey || cred.walletPrivateKey));
+	} catch {
+		return false;
+	}
+}
+
+async function freeLifeTool(
+	this: IExecuteFunctions,
+	op: DirectOp,
+	i: number,
+): Promise<{ json: IDataObject; binary?: IBinaryKeyData }> {
+	const meta = DIRECT_OPS[op];
+	let body: IDataObject;
+	if (op === 'screenshot') {
+		const url = String(this.getNodeParameter('url', i) ?? '').trim();
+		if (!/^https?:\/\//i.test(url)) throw new NodeOperationError(this.getNode(), 'URL must be an absolute http(s) URL', { itemIndex: i });
+		const format = this.getNodeParameter('screenshotFormat', i, 'png') as string;
+		const o = (this.getNodeParameter('screenshotOptions', i, {}) ?? {}) as IDataObject;
+		body = { url, format };
+		if (o.full_page === true || o.fullPage === true) body.full_page = true;
+		if (o.viewport && typeof o.viewport === 'object') body.viewport = o.viewport;
+	} else if (op === 'news') {
+		const query = (this.getNodeParameter('query', i) as string).trim();
+		if (!query) throw new NodeOperationError(this.getNode(), 'Query is empty', { itemIndex: i });
+		if (query.length < MIN_QUERY_CHARS) throw new NodeOperationError(this.getNode(), QUERY_TOO_SHORT_MESSAGE, { itemIndex: i });
+		const maxResults = this.getNodeParameter('newsMaxResults', i, 5) as number;
+		body = { query, max_results: maxResults };
+	} else {
+		const query = (this.getNodeParameter('query', i) as string).trim();
+		if (!query) throw new NodeOperationError(this.getNode(), 'Query is empty', { itemIndex: i });
+		if (query.length < MIN_QUERY_CHARS) throw new NodeOperationError(this.getNode(), QUERY_TOO_SHORT_MESSAGE, { itemIndex: i });
+		const numResults = this.getNodeParameter('numResults', i, 3) as number;
+		const maxChars = this.getNodeParameter('searchAndReadMaxChars', i, 8000) as number;
+		body = { query, num_results: numResults, max_chars: maxChars };
+		const rf = this.getNodeParameter('renderFallback', i, false) as boolean;
+		if (rf) body.render_fallback = true;
+	}
+	let res: IDataObject;
+	try {
+		res = await this.helpers.httpRequest({
+			method: 'POST',
+			url: `${RELAY_BASE_URL}/v1/${meta.path}`,
+			body,
+			headers: { 'X-Agent-Client': CLIENT_TAG },
+			json: true,
+			timeout: op === 'screenshot' || op === 'searchAndRead' ? 60000 : 30000,
+		});
+	} catch (e) {
+		const err = e as { httpCode?: unknown; statusCode?: unknown; response?: { status?: unknown } };
+		const status = err?.httpCode ?? err?.response?.status ?? err?.statusCode;
+		if (String(status) === '429' || String(status) === '402') {
+			throw new NodeOperationError(this.getNode(), LIFE_LIMIT_MESSAGES[op], { itemIndex: i });
+		}
+		const code = Number(status);
+		if (code >= 400 && code < 500 && code !== 408) {
+			throw new NodeOperationError(
+				this.getNode(),
+				`AgentSearch rejected the request (HTTP ${code}). Fix the input before retrying; retrying the same request will fail again.`,
+				{ itemIndex: i },
+			);
+		}
+		throw new NodeApiError(this.getNode(), e as JsonObject, { itemIndex: i });
+	}
+	if (res && typeof res === 'object') delete res.provider;
+	if (op === 'screenshot') {
+		const shot = (res as IDataObject).screenshot as IDataObject | undefined;
+		if (shot && typeof shot.base64 === 'string' && shot.base64) {
+			const format = shot.format === 'jpeg' || shot.format === 'jpg' ? 'jpeg' : 'png';
+			const binary: IBinaryKeyData = {
+				data: {
+					data: String(shot.base64),
+					mimeType: `image/${format}`,
+					fileName: `screenshot.${format === 'jpeg' ? 'jpg' : 'png'}`,
+				},
+			};
+			const { base64: _omit, ...metaShot } = shot;
+			return { json: { ...res, screenshot: { ...metaShot, returned_as: 'binary data' } }, binary };
+		}
+	}
+	return { json: res };
 }
 
 async function directPaid(
